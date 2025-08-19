@@ -5,6 +5,7 @@ import numpy as np
 
 from ..config import Config, coverage_radius
 from ..qos import reg_err
+from ..simulation import euclidean_distance
 
 
 @dataclass
@@ -17,7 +18,10 @@ class SCSConfig:
 
 @dataclass
 class SCSComponents:
-    """Placeholder for individual SCS components."""
+    """Aggregated components of the SCS metric."""
+    continuity: float = 0.0
+    coverage: float = 0.0
+    qos: float = 0.0
     value: float = 0.0
 
 @dataclass(frozen=True)
@@ -140,11 +144,102 @@ def blended_error(
     return (1.0 - w) * base + w * (1.0 - e_scs)
 
 
-def scs(*args, **kwargs) -> Tuple[float, SCSComponents]:
-    """Simple placeholder implementation returning zero score."""
-    return 0.0, SCSComponents()
+def scs(
+    assign: list[int],
+    pc: Tuple[list[dict], list[dict]],
+    prev_assign: Optional[list[int]],
+    cfg: Config,
+    scs_cfg: SCSConfig,
+    rng: np.random.Generator,
+) -> Tuple[float, SCSComponents]:
+    prods, cons = pc
+    num_c = len(cons)
+    if num_c == 0:
+        return 0.0, SCSComponents()
+
+    radius = coverage_radius(cfg)
+    cont_total = cov_total = qos_total = success_total = 0.0
+
+    for ci, c in enumerate(cons):
+        pi = assign[ci]
+        p = prods[pi]
+
+        cont = float(prev_assign is not None and prev_assign[ci] == pi)
+        cov = float(euclidean_distance(p, c) <= radius)
+        qos = float(p.get("qos") in {"Medium", "High"})
+
+        cont_total += cont
+        cov_total += cov
+        qos_total += qos
+        success_total += cont * cov * qos
+
+    cont_avg = cont_total / num_c
+    cov_avg = cov_total / num_c
+    qos_avg = qos_total / num_c
+    value = success_total / num_c
+    comps = SCSComponents(continuity=cont_avg, coverage=cov_avg, qos=qos_avg, value=value)
+    return value, comps
 
 
-def expected_scs_next(*args, **kwargs) -> Tuple[float, SCSComponents]:
-    """Placeholder expected SCS function."""
-    return 0.0, SCSComponents()
+def expected_scs_next(
+    assign: list[int],
+    pc: Tuple[list[dict], list[dict]],
+    prev_assign: Optional[list[int]],
+    cfg: Config,
+    scs_cfg: SCSConfig,
+    rng: np.random.Generator,
+    transition_matrix: Optional[Dict[str, Dict[str, float]]] = None,
+    mc_rollouts: Optional[int] = None,
+) -> Tuple[float, SCSComponents]:
+    prods, cons = pc
+    num_c = len(cons)
+    if num_c == 0:
+        return 0.0, SCSComponents()
+
+    radius = coverage_radius(cfg)
+    ou = OUParams(cfg.ou_theta, cfg.ou_sigma, cfg.delta_t)
+    samples = mc_rollouts if mc_rollouts is not None else scs_cfg.mc_samples
+
+    cont_total = cov_total = qos_total = success_total = 0.0
+
+    for ci, c in enumerate(cons):
+        pi = assign[ci]
+        p = prods[pi]
+
+        cont = float(prev_assign is not None and prev_assign[ci] == pi)
+        qos_prob = qos_success_prob(
+            provider_qos_now=p.get("qos"),
+            transition_matrix=transition_matrix,
+            fallback_prob=p.get("qos_prob", 0.5),
+        )
+        cov_prob = mc_coverage_prob(
+            p_coords=tuple(p["coords"]),
+            c_coords=tuple(c["coords"]),
+            space_size=cfg.space_size,
+            radius=radius,
+            ou=ou,
+            rng=rng,
+            K=samples,
+        )
+        pair_est = expected_pair_scs_tplus1(
+            p,
+            c,
+            cfg.space_size,
+            radius,
+            ou,
+            rng,
+            transition_matrix,
+            samples,
+        )
+
+        cont_total += cont
+        cov_total += cov_prob
+        qos_total += qos_prob
+        success_total += cont * pair_est
+
+    cont_avg = cont_total / num_c
+    cov_avg = cov_total / num_c
+    qos_avg = qos_total / num_c
+    value = success_total / num_c
+    comps = SCSComponents(continuity=cont_avg, coverage=cov_avg, qos=qos_avg, value=value)
+    return value, comps
