@@ -3,9 +3,15 @@ MULTIOBJ_ALGORITHMS package
 Public surface.
 """
 from .config import Config, NSGAConfig, PSOConfig, GWOConfig, coverage_radius, providers_consumers_from_ratio
-from .experiment import run_experiment
 from .metrics.scs import scs, expected_scs_next, SCSConfig, SCSComponents
-from .algorithms import ALG_REGISTRY
+
+# Optional imports that may pull heavy dependencies
+try:  # pragma: no cover
+    from .experiment import run_experiment
+    from .algorithms import ALG_REGISTRY
+except Exception:  # pragma: no cover
+    run_experiment = None
+    ALG_REGISTRY = {}
 
 __all__ = [
     "Config", "NSGAConfig", "PSOConfig", "GWOConfig",

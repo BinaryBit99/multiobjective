@@ -3,8 +3,15 @@ from dataclasses import dataclass
 from typing import Dict, Tuple, Optional
 import numpy as np
 
-from ..config import Config, coverage_radius
-from ..qos import reg_err
+try:  # Support both package and direct imports for QoS helpers
+    from ..qos import reg_err
+except ImportError:  # pragma: no cover
+    from qos import reg_err
+
+
+def _coverage_radius(cfg) -> float:
+    w, h = cfg.space_size
+    return cfg.coverage_fraction * np.sqrt(w * w + h * h)
 
 
 @dataclass
@@ -106,7 +113,7 @@ def blended_error(
     p: dict,
     c: dict,
     t: int,
-    cfg: Config,
+    cfg,
     norm_fn,                   # your existing norm_err(kind, err, t)
     rng: np.random.Generator,  # per-time RNG, e.g. rng_pool.for_time("scs", t)
     ou_params: Optional[OUParams] = None,
@@ -123,7 +130,7 @@ def blended_error(
         return base
 
     ou = ou_params or OUParams(cfg.ou_theta, cfg.ou_sigma, cfg.delta_t)
-    radius = coverage_radius(cfg)
+    radius = _coverage_radius(cfg)
     samples = mc_rollouts if mc_rollouts is not None else scs_cfg.mc_samples
 
     e_scs = expected_pair_scs_tplus1(
@@ -140,11 +147,87 @@ def blended_error(
     return (1.0 - w) * base + w * (1.0 - e_scs)
 
 
-def scs(*args, **kwargs) -> Tuple[float, SCSComponents]:
-    """Simple placeholder implementation returning zero score."""
-    return 0.0, SCSComponents()
+def scs(
+    assignments: list[int],
+    records: Tuple[list, list],
+    prev_assign: Optional[Dict[str, str]],
+    cfg,
+    scs_cfg: SCSConfig,
+    rng: np.random.Generator,
+) -> Tuple[float, SCSComponents]:
+    """Compute the Service Continuity Score for current assignments.
+
+    A consumer receives a score of ``1`` when the provider assignment
+    matches ``prev_assign`` and the pair is within coverage radius with an
+    acceptable QoS level (``Medium`` or ``High``).  The returned score is
+    the mean across all consumers.
+    """
+
+    prods, cons = records
+    radius = _coverage_radius(cfg)
+    total = 0.0
+
+    for ci, pi in enumerate(assignments):
+        c = cons[ci]
+        p = prods[pi]
+
+        # continuity with previous assignment
+        same_provider = False
+        if prev_assign is not None:
+            prev = prev_assign.get(c["service_id"])
+            same_provider = prev == p["service_id"]
+
+        # spatial coverage check
+        dx = p["coords"][0] - c["coords"][0]
+        dy = p["coords"][1] - c["coords"][1]
+        in_radius = (dx * dx + dy * dy) ** 0.5 <= radius
+
+        # QoS check
+        qos_ok = p.get("qos") in {"Medium", "High"}
+
+        total += 1.0 if same_provider and in_radius and qos_ok else 0.0
+
+    mean = total / max(len(assignments), 1)
+    return mean, SCSComponents(value=mean)
 
 
-def expected_scs_next(*args, **kwargs) -> Tuple[float, SCSComponents]:
-    """Placeholder expected SCS function."""
-    return 0.0, SCSComponents()
+def expected_scs_next(
+    assignments: list[int],
+    records: Tuple[list, list],
+    prev_assign: Optional[Dict[str, str]],
+    cfg,
+    scs_cfg: SCSConfig,
+    rng: np.random.Generator,
+    transition_matrix: Optional[Dict[str, Dict[str, float]]] = None,
+) -> Tuple[float, SCSComponents]:
+    """Monte Carlo estimate of the next-step SCS for current assignments."""
+
+    prods, cons = records
+    radius = _coverage_radius(cfg)
+    ou = OUParams(cfg.ou_theta, cfg.ou_sigma, cfg.delta_t)
+
+    total = 0.0
+    for ci, pi in enumerate(assignments):
+        p = prods[pi]
+        c = cons[ci]
+
+        p_rec = {
+            "coords": p["coords"],
+            "qos": p.get("qos"),
+            "qos_prob": p.get("qos_prob", 0.5),
+        }
+        c_rec = {"coords": c["coords"]}
+
+        total += expected_pair_scs_tplus1(
+            provider_record=p_rec,
+            consumer_record=c_rec,
+            space_size=cfg.space_size,
+            radius=radius,
+            ou=ou,
+            rng=rng,
+            transition_matrix=transition_matrix,
+            mc_rollouts=scs_cfg.mc_samples,
+        )
+
+    mean = total / max(len(assignments), 1)
+    return mean, SCSComponents(value=mean)
