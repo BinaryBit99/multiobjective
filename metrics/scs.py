@@ -1,11 +1,25 @@
 # metrics/scs.py
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, Tuple, Optional, Any
+from typing import Dict, Tuple, Optional
 import numpy as np
 
 from ..config import Config, coverage_radius
 from ..qos import reg_err
+
+
+@dataclass
+class SCSConfig:
+    """Configuration for SCS look-ahead."""
+    enabled: bool = True
+    weight: float = 0.40
+    mc_samples: int = 96
+
+
+@dataclass
+class SCSComponents:
+    """Placeholder for individual SCS components."""
+    value: float = 0.0
 
 @dataclass(frozen=True)
 class OUParams:
@@ -105,8 +119,8 @@ def blended_error(
         err' = (1-w)*err_now + w*(1 - E[SCS_{t+1}])
     """
     base = norm_fn(err_type, reg_err(p, c, err_type), t)
-    scs_cfg = getattr(cfg, "scs", None)
-    if not scs_cfg or not scs_cfg.enabled:
+    scs_cfg = cfg.scs
+    if not scs_cfg.enabled:
         return base
 
     ou = ou_params or OUParams(cfg.ou_theta, cfg.ou_sigma, cfg.delta_t)
@@ -125,3 +139,13 @@ def blended_error(
     )
     w = scs_cfg.weight
     return (1.0 - w) * base + w * (1.0 - e_scs)
+
+
+def scs(*args, **kwargs) -> Tuple[float, SCSComponents]:
+    """Simple placeholder implementation returning zero score."""
+    return 0.0, SCSComponents()
+
+
+def expected_scs_next(*args, **kwargs) -> Tuple[float, SCSComponents]:
+    """Placeholder expected SCS function."""
+    return 0.0, SCSComponents()
