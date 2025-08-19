@@ -1,6 +1,6 @@
 import numpy as np, pandas as pd, os
 from typing import List, Tuple
-from .config import Config, providers_consumers_from_ratio
+from .config import Config
 from .rng import RNGPool
 from .simulation import build_trajectories
 from .qos import classify_qos, smooth_qos
@@ -26,7 +26,7 @@ def RecordBuilder(cfg: Config, rng_pool: RNGPool):
       - cost_per_dict: dict[str t] -> list[float] costs of producers
       - transition_matrix: learned Markov T from raw provider QoS
     """
-    num_providers, num_consumers = providers_consumers_from_ratio(cfg)
+    num_providers, num_consumers = cfg.num_providers, cfg.num_consumers
     service_ids = [f"S{i+1}" for i in range(cfg.num_services)]
     providers = service_ids[:num_providers]
     consumers = service_ids[num_providers:]

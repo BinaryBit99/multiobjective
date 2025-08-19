@@ -1,5 +1,5 @@
 import numpy as np
-from .config import Config, providers_consumers_from_ratio, coverage_radius
+from .config import Config, coverage_radius
 from .rng import RNGPool
 from .data import RecordBuilder
 from .indicators import MetricsRecorder
@@ -10,7 +10,7 @@ from .qos import reg_err
 def run_experiment(cfg: Config) -> dict:
     rng_pool = RNGPool(cfg.master_seed, cfg.num_times)
     records, cost_per_dict, T, providers, consumers = RecordBuilder(cfg, rng_pool)
-    num_providers, num_consumers = providers_consumers_from_ratio(cfg)
+    num_providers, num_consumers = cfg.num_providers, cfg.num_consumers
 
     # normalization bounds (per-time) for errors + cost
     per_time_bounds = {}
