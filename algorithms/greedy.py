@@ -1,7 +1,7 @@
 from typing import Tuple, List
 import numpy as np
 from ..types import ErrorType
-from ..config import Config, coverage_radius, providers_consumers_from_ratio
+from ..config import Config, coverage_radius
 from ..rng import RNGPool
 from ..simulation import euclidean_distance
 from ..qos import reg_err

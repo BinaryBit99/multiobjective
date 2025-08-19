@@ -95,6 +95,20 @@ class Config:
     def num_consumers(self) -> int:
         return self.num_services - self.num_providers
 
+# --- functional helpers -----------------------------------------
+def coverage_radius(cfg: Config) -> float:
+    """Return the coverage radius derived from the configuration."""
+    w, h = cfg.space_size
+    return cfg.coverage_fraction * math.sqrt(w * w + h * h)
+
+
+def providers_consumers_from_ratio(cfg: Config) -> tuple[int, int]:
+    """Compute the provider/consumer counts from ``cfg.ratio_str``."""
+    l, r = _ratio_to_nums(cfg.ratio_str)
+    num_providers = round(cfg.num_services * (l / (l + r)))
+    num_consumers = cfg.num_services - num_providers
+    return num_providers, num_consumers
+
 # one shared instance you import everywhere
 cfg = Config()
 
