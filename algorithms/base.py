@@ -1,10 +1,6 @@
-from typing import Protocol, List, Tuple, Callable, Optional
+from typing import Protocol, List
 import numpy as np, math
 from ..types import ErrorType
-from ..qos import reg_err
-from ..config import Config
-from ..rng import RNGPool
-
 from ..config import Config
 from ..rng import RNGPool
 from ..metrics.scs import blended_error
@@ -39,25 +35,28 @@ class Individual:
         errs, costs = [], []
         for i, c in enumerate(cons):
             p = prods[self.genes[i]]
-            e_raw = reg_err(p, c, err_type)
-            errs.append(norm_fn(err_type, e_raw, t))
             # one per-time RNG stream for SCS lookahead
             scs_rng = rng_pool.for_("scs", t)
 
-            e = blended_error(
-                err_type,
-                p, c, t,
-                cfg,            # access to space, radius, weights, etc.
-                norm_fn,        # your existing normalizer
-                scs_rng,        # RNG for MC
-                ou_params=OU_PARAMS_DEFAULT,
-                transition_matrix=transition_matrix,
+            errs.append(
+                blended_error(
+                    err_type,
+                    p, c, t,
+                    cfg,            # access to space, radius, weights, etc.
+                    norm_fn,        # existing normalizer
+                    scs_rng,        # RNG for MC
+                    ou_params=OU_PARAMS_DEFAULT,
+                    transition_matrix=transition_matrix,
+                )
             )
-            errs.append(e)
 
             r = p.get("qos_prob", 0.5)
             v = p.get("qos_volatility", 0.0)
-            costs.append(ctx_norm_cost(p["cost"], t, norm_fn) * (1.0 + lambda_vol*v) / (max(r,1e-6)**gamma_qos))
+            costs.append(
+                ctx_norm_cost(p["cost"], t, norm_fn)
+                * (1.0 + lambda_vol * v)
+                / (max(r, 1e-6) ** gamma_qos)
+            )
         self.error = float(np.mean(errs))
         self.cost  = float(np.mean(costs))
 
