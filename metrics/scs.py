@@ -1,17 +1,34 @@
 # metrics/scs.py
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, Tuple, Optional, Any
+from typing import Dict, Tuple, Optional, Any, List, Sequence
 import numpy as np
 
 from ..config import Config, coverage_radius
 from ..qos import reg_err
+from ..rng import RNGPool
 
 @dataclass(frozen=True)
 class OUParams:
     theta: float      # mean reversion
     sigma: float      # diffusion
     delta_t: float    # step
+
+
+@dataclass
+class SCSConfig:
+    """Configuration for SCS related calculations."""
+    enabled: bool = True
+    weight: float = 0.5
+    mc_samples: int = 128
+
+
+@dataclass
+class SCSComponents:
+    """Breakdown of SCS sub-metrics."""
+    coverage: float
+    continuity: float
+    qos: float
 
 def _ou_step(x_t: np.ndarray, mu: np.ndarray, ou: OUParams, rng: np.random.Generator) -> np.ndarray:
     noise = rng.standard_normal(size=x_t.shape)
@@ -125,3 +142,83 @@ def blended_error(
     )
     w = scs_cfg.weight
     return (1.0 - w) * base + w * (1.0 - e_scs)
+
+
+def scs(
+    assign: Sequence[int],
+    records: Tuple[Sequence[dict], Sequence[dict]],
+    prev_assign: Optional[Dict[str, str]],
+    cfg: Config,
+    scs_cfg: SCSConfig,
+) -> Tuple[float, SCSComponents]:
+    """Compute current SCS for a set of assignments."""
+    prods, cons = records
+    n = len(cons) or 1
+    radius = coverage_radius(cfg)
+    cov_hits = cont_hits = qos_hits = 0
+    for ci, p_idx in enumerate(assign):
+        p = prods[p_idx]
+        c = cons[ci]
+        (px, py), (cx, cy) = p["coords"], c["coords"]
+        if ((px - cx) ** 2 + (py - cy) ** 2) ** 0.5 <= radius:
+            cov_hits += 1
+        if prev_assign and prev_assign.get(c["service_id"]) == p["service_id"]:
+            cont_hits += 1
+        if p.get("qos") in ("Medium", "High"):
+            qos_hits += 1
+    coverage = cov_hits / n
+    continuity = (cont_hits / n) if prev_assign else 1.0
+    qos = qos_hits / n
+    score = coverage * qos * continuity
+    return score, SCSComponents(coverage, continuity, qos)
+
+
+def expected_scs_next(
+    assign: Sequence[int],
+    records: Tuple[Sequence[dict], Sequence[dict]],
+    prev_assign: Optional[Dict[str, str]],
+    cfg: Config,
+    scs_cfg: SCSConfig,
+    rng_pool: RNGPool,
+    transition_matrix: Optional[Dict[str, Dict[str, float]]] = None,
+) -> Tuple[float, SCSComponents]:
+    """Estimate mean SCS at the next time step."""
+    prods, cons = records
+    n = len(cons) or 1
+    radius = coverage_radius(cfg)
+    ou = OUParams(cfg.ou_theta, cfg.ou_sigma, cfg.delta_t)
+    cov_probs: List[float] = []
+    qos_probs: List[float] = []
+    for ci, p_idx in enumerate(assign):
+        p = prods[p_idx]
+        c = cons[ci]
+        cov_probs.append(
+            mc_coverage_prob(
+                p_coords=tuple(p["coords"]),
+                c_coords=tuple(c["coords"]),
+                space_size=cfg.space_size,
+                radius=radius,
+                ou=ou,
+                rng=rng_pool.global_,
+                K=scs_cfg.mc_samples,
+            )
+        )
+        qos_probs.append(
+            qos_success_prob(
+                provider_qos_now=p.get("qos"),
+                transition_matrix=transition_matrix,
+                fallback_prob=p.get("qos_prob", 0.5),
+            )
+        )
+    coverage = float(np.mean(cov_probs)) if cov_probs else 0.0
+    qos = float(np.mean(qos_probs)) if qos_probs else 0.0
+    cont_hits = 0
+    if prev_assign:
+        for ci, p_idx in enumerate(assign):
+            c = cons[ci]
+            p = prods[p_idx]
+            if prev_assign.get(c["service_id"]) == p["service_id"]:
+                cont_hits += 1
+    continuity = (cont_hits / n) if prev_assign else 1.0
+    score = coverage * qos * continuity
+    return score, SCSComponents(coverage, continuity, qos)
