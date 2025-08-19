@@ -4,7 +4,7 @@ from .rng import RNGPool
 from .data import RecordBuilder
 from .indicators import MetricsRecorder
 from .streaks import StreakTracker
-from .metrics.scs import SCSConfig, scs, expected_scs_next
+from .metrics import SCSConfig, scs, expected_scs_next
 from .qos import reg_err
 
 def run_experiment(cfg: Config) -> dict:
@@ -58,8 +58,10 @@ def run_experiment(cfg: Config) -> dict:
     # compute indicators from logged fronts
     indicators = metrics.compute_all()
 
-    # example SCS usage on greedy assignments each t (simulate “assignments” as argmin cost choice)
-    scs_cfg = SCSConfig()
+    # example SCS usage on greedy assignments each t (simulate "assignments" as argmin cost choice)
+    scs_cfg = (
+        SCSConfig(**vars(cfg.scs)) if getattr(cfg, "scs", None) else SCSConfig()
+    )
     scs_series = {"tp": [], "res": [], "E_tp": [], "E_res": []}
     prev_assign = None
     for t in range(cfg.num_times):
@@ -73,10 +75,15 @@ def run_experiment(cfg: Config) -> dict:
                 scores.append((e + norm_err("__cost__", p["cost"], t), pi))
             assign.append(min(scores)[1])
 
-        score_tp, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg)
-        score_res, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg)
-        mean_next_tp, _ = expected_scs_next(assign, (prods, cons), prev_assign, cfg, scs_cfg, rng_pool, T)
-        mean_next_res, _ = expected_scs_next(assign, (prods, cons), prev_assign, cfg, scs_cfg, rng_pool, T)
+        scs_rng = rng_pool.for_("scs", t)
+        score_tp, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng)
+        score_res, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng)
+        mean_next_tp, _ = expected_scs_next(
+            assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng, T
+        )
+        mean_next_res, _ = expected_scs_next(
+            assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng, T
+        )
 
         scs_series["tp"].append(score_tp)
         scs_series["res"].append(score_res)
