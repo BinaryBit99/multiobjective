@@ -1,4 +1,3 @@
-# config.py
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Tuple
@@ -82,7 +81,10 @@ class Config:
     gwo:  GWOConfig  = field(default_factory=GWOConfig)
 
     def __post_init__(self) -> None:
+        # Lazily import to avoid circular dependencies at module import time.
         from .metrics.scs import SCSConfig
+
+        # Instantiate the SCS configuration used by error blending and metrics.
         self.scs = SCSConfig(
             enabled=self.scs_lookahead_weight > 0.0,
             weight=self.scs_lookahead_weight,
