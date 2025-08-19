@@ -1,0 +1,38 @@
+import numpy as np
+from dataclasses import dataclass
+
+@dataclass
+class RNGPool:
+    master_seed: int
+    num_times: int
+
+    def __post_init__(self):
+        root = np.random.SeedSequence(self.master_seed)
+        ss_global, ss_ou, ss_init, ss_greedy, ss_nsga, ss_mopso, ss_mogwo = root.spawn(7)
+        self.global_ = np.random.Generator(np.random.PCG64(ss_global))
+        self.ou = [np.random.Generator(np.random.PCG64(s)) for s in ss_ou.spawn(self.num_times)]
+        self.init = np.random.Generator(np.random.PCG64(ss_init))
+        self.greedy = [np.random.Generator(np.random.PCG64(s)) for s in ss_greedy.spawn(self.num_times)]
+        self.nsga   = [np.random.Generator(np.random.PCG64(s)) for s in ss_nsga.spawn(self.num_times)]
+        self.mopso  = [np.random.Generator(np.random.PCG64(s)) for s in ss_mopso.spawn(self.num_times)]
+        self.mogwo  = [np.random.Generator(np.random.PCG64(s)) for s in ss_mogwo.spawn(self.num_times)]
+        self._ou_node = {}
+
+    def for_(self, scope: str, t: int | None=None, idx: int | None=None) -> np.random.Generator:
+        if scope == "greedy": return self.greedy[int(t)]
+        if scope == "nsga":   return self.nsga[int(t)]
+        if scope in ("mopso","pso"): return self.mopso[int(t)]
+        if scope in ("mogwo","gwo"): return self.mogwo[int(t)]
+        if scope in ("init","ou_init"): return self.init
+        if scope == "coords":
+            return np.random.Generator(np.random.PCG64(
+                np.random.SeedSequence([self.master_seed, 2001, int(t)])
+            ))
+        if scope == "ou_node":
+            idx = int(idx)
+            if idx not in self._ou_node:
+                self._ou_node[idx] = np.random.Generator(
+                    np.random.PCG64(np.random.SeedSequence([self.master_seed, 1001, idx]))
+                )
+            return self._ou_node[idx]
+        return self.global_
