@@ -71,6 +71,7 @@ class Config:
     # SCS(t+1) Monte Carlo look-ahead
     scs_lookahead_weight: float = 0.40      # set 0.0 to disable
     scs_mc_rollouts: int = 96               # 64–128 is typical
+    scs: 'SCSConfig' = field(init=False)
 
     # RNG
     master_seed: int = 42
@@ -79,6 +80,14 @@ class Config:
     nsga: NSGAConfig = field(default_factory=NSGAConfig)
     pso:  PSOConfig  = field(default_factory=PSOConfig)
     gwo:  GWOConfig  = field(default_factory=GWOConfig)
+
+    def __post_init__(self) -> None:
+        from .metrics.scs import SCSConfig
+        self.scs = SCSConfig(
+            enabled=self.scs_lookahead_weight > 0.0,
+            weight=self.scs_lookahead_weight,
+            mc_samples=self.scs_mc_rollouts,
+        )
 
     # --- convenient computed properties ---
     @property
