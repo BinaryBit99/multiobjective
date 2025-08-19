@@ -2,8 +2,6 @@ import numpy as np
 from ..config import Config
 from ..rng import RNGPool
 from ..types import ErrorType
-from ..qos import reg_err
-from ..simulation import euclidean_distance
 from ..indicators import MetricsRecorder
 from ..pareto import crowding_distance
 
@@ -39,10 +37,12 @@ def _fast_nds(objs):
     return [f for f in fronts if f]
 
 def run_mopso(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
-              err_type: ErrorType, metrics: MetricsRecorder, norm_fn):
+              err_type: ErrorType, metrics: MetricsRecorder, norm_fn,
+              transition_matrix: dict | None = None):
     errors, costs, stds = [], [], []
     for t in range(cfg.num_times):
         rng = rng_pool.for_("pso", t)
+        scs_rng = rng_pool.for_("scs", t)
         prods, cons = records[t]
         D, P = len(cons), len(prods)
         # QoS/Cost matrices
@@ -50,7 +50,13 @@ def run_mopso(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
         curr_max, curr_min = max(cost_per[f"{t}"]), min(cost_per[f"{t}"])
         for p in range(P):
             for j, cn in enumerate(cons):
-                q[p,j] = norm_fn(err_type, reg_err(prods[p], cn, err_type), t)
+                q[p,j] = blended_error(
+                    err_type,
+                    prods[p], cn, t,
+                    cfg, norm_fn, scs_rng,
+                    ou_params=OU_PARAMS_DEFAULT,
+                    transition_matrix=transition_matrix,
+                )
                 r = prods[p].get("qos_prob",0.5); v = prods[p].get("qos_volatility",0.0)
                 base = (prods[p]["cost"] - curr_min) / (curr_max - curr_min + 1e-12)
                 c[p,j] = base * (1.0 + cfg.lambda_vol*v) / (max(r,1e-6)**cfg.gamma_qos)
