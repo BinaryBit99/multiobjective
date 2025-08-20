@@ -85,23 +85,37 @@ def expected_pair_scs_tplus1(
     rng: np.random.Generator,
     transition_matrix: Optional[Dict[str, Dict[str, float]]] = None,
     mc_rollouts: int = 128,
+    cov_prob: Optional[float] = None,
+    qos_prob: Optional[float] = None,
 ) -> float:
+    """Estimate SCS for a provider/consumer pair one step ahead.
+
+    Optional ``cov_prob`` and ``qos_prob`` allow callers to supply
+    pre-computed coverage and QoS success probabilities, avoiding
+    redundant Monte Carlo work.
     """
-    E[SCS_{t+1}] ≈ P(within radius at t+1) * P(QoS acceptable at t+1)
-    """
-    p_qos_next = qos_success_prob(
-        provider_qos_now = provider_record.get("qos"),
-        transition_matrix = transition_matrix,
-        fallback_prob = provider_record.get("qos_prob", 0.5),
+    p_qos_next = (
+        qos_success_prob(
+            provider_qos_now=provider_record.get("qos"),
+            transition_matrix=transition_matrix,
+            fallback_prob=provider_record.get("qos_prob", 0.5),
+        )
+        if qos_prob is None
+        else float(qos_prob)
     )
-    p_cov_next = mc_coverage_prob(
-        p_coords = tuple(provider_record["coords"]),
-        c_coords = tuple(consumer_record["coords"]),
-        space_size = space_size,
-        radius = radius,
-        ou = ou,
-        rng = rng,
-        K = mc_rollouts,
+
+    p_cov_next = (
+        mc_coverage_prob(
+            p_coords=tuple(provider_record["coords"]),
+            c_coords=tuple(consumer_record["coords"]),
+            space_size=space_size,
+            radius=radius,
+            ou=ou,
+            rng=rng,
+            K=mc_rollouts,
+        )
+        if cov_prob is None
+        else float(cov_prob)
     )
     return p_cov_next * p_qos_next
 
@@ -222,14 +236,16 @@ def expected_scs_next(
             K=samples,
         )
         pair_est = expected_pair_scs_tplus1(
-            p,
-            c,
-            cfg.space_size,
-            radius,
-            ou,
-            rng,
-            transition_matrix,
-            samples,
+            provider_record=p,
+            consumer_record=c,
+            space_size=cfg.space_size,
+            radius=radius,
+            ou=ou,
+            rng=rng,
+            transition_matrix=transition_matrix,
+            mc_rollouts=samples,
+            cov_prob=cov_prob,
+            qos_prob=qos_prob,
         )
 
         cont_total += cont
