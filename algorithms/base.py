@@ -33,18 +33,19 @@ class Individual:
         transition_matrix: dict | None = None,
         ):
         errs, costs = [], []
+        scs_rngs = [rng_pool.for_("scs", t, i) for i in range(len(cons))]
         for i, c in enumerate(cons):
             p = prods[self.genes[i]]
-            # one per-time RNG stream for SCS lookahead
-            scs_rng = rng_pool.for_("scs", t)
 
             errs.append(
                 blended_error(
                     err_type,
-                    p, c, t,
+                    p,
+                    c,
+                    t,
                     cfg,            # access to space, radius, weights, etc.
                     norm_fn,        # existing normalizer
-                    scs_rng,        # RNG for MC
+                    scs_rngs[i],    # RNG for MC
                     ou_params=OU_PARAMS_DEFAULT,
                     transition_matrix=transition_matrix,
                 )

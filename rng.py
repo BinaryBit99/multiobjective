@@ -25,7 +25,14 @@ class RNGPool:
     def for_(self, scope: str, t: int | None=None, idx: int | None=None) -> np.random.Generator:
         if scope == "greedy": return self.greedy[int(t)]
         if scope == "nsga":   return self.nsga[int(t)]
-        if scope == "scs":    return self.scs[int(t)]
+        if scope == "scs":
+            if idx is not None:
+                return np.random.Generator(
+                    np.random.PCG64(
+                        np.random.SeedSequence([self.master_seed, 3001, int(t), int(idx)])
+                    )
+                )
+            return self.scs[int(t)]
         if scope == "ou":     return self.ou[int(t)]
         if scope in ("mopso","pso"): return self.mopso[int(t)]
         if scope in ("mogwo","gwo"): return self.mogwo[int(t)]
