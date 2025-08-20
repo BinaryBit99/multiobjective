@@ -165,7 +165,6 @@ def scs(
     prev_assign: Optional[list[int]],
     cfg: Config,
     scs_cfg: SCSConfig,
-    rng: np.random.Generator,
 ) -> Tuple[float, SCSComponents]:
     prods, cons = pc
     num_c = len(cons)
