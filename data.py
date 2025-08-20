@@ -4,6 +4,7 @@ from .config import Config
 from .rng import RNGPool
 from .simulation import build_trajectories
 from .qos import classify_qos, smooth_qos
+from .types import ProviderRecord, ConsumerRecord
 
 def _processing(path: str) -> np.ndarray:
     df = pd.read_csv(path, sep=r"\s+", header=None, engine="python")
@@ -22,7 +23,7 @@ def load_qws_txt(path: str) -> Tuple[list[str], list[str]]:
 def RecordBuilder(cfg: Config, rng_pool: RNGPool):
     """
     Returns a callable build_all() that returns:
-      - records: dict[t] -> (prods, cons) lists of dicts
+      - records: dict[t] -> (prods, cons) lists of typed records
       - cost_per_dict: dict[str t] -> list[float] costs of producers
       - transition_matrix: learned Markov T from raw provider QoS
     """
@@ -62,7 +63,9 @@ def RecordBuilder(cfg: Config, rng_pool: RNGPool):
         rt_idx = rng.permutation(len(rs_two))[:k_rt]
         tp_idx = rng.permutation(len(tp_two))[:k_tp]
 
-        prods, cons, costs = [], [], []
+        prods: List[ProviderRecord] = []
+        cons: List[ConsumerRecord] = []
+        costs = []
         coords = []
         for i in range(cfg.num_services):
             sid = f"p{i}" if i < num_providers else f"c{i - num_providers}"
@@ -87,13 +90,33 @@ def RecordBuilder(cfg: Config, rng_pool: RNGPool):
                 qprob = 0.7 if qos in ("Medium","High") else 0.3
                 qvol  = 0.3 if qos == "Medium" else (0.1 if qos=="High" else 0.6)
 
-            rec = {
-                "service_id": sid, "timestamp": t,
-                "response_time_ms": resp, "throughput_kbps": thrp,
-                "cost": cost, "coords": coords[i].tolist(),
-                "qos": qos, "qos_prob": qprob, "qos_volatility": qvol
-            }
-            (prods if i < num_providers else cons).append(rec)
+            rec_coords = tuple(coords[i].tolist())
+            if i < num_providers:
+                rec = ProviderRecord(
+                    service_id=sid,
+                    timestamp=t,
+                    response_time_ms=resp,
+                    throughput_kbps=thrp,
+                    cost=cost,
+                    coords=rec_coords,
+                    qos=qos,
+                    qos_prob=qprob,
+                    qos_volatility=qvol,
+                )
+                prods.append(rec)
+            else:
+                rec = ConsumerRecord(
+                    service_id=sid,
+                    timestamp=t,
+                    response_time_ms=resp,
+                    throughput_kbps=thrp,
+                    cost=cost,
+                    coords=rec_coords,
+                    qos=qos,
+                    qos_prob=qprob,
+                    qos_volatility=qvol,
+                )
+                cons.append(rec)
 
         cost_per_dict[f"{t}"] = costs
         records[t] = (prods, cons)

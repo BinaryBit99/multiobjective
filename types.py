@@ -14,7 +14,22 @@ ErrorType = Literal["tp", "res", "rel"]
 
 
 @dataclass
-class ServiceRecord:
+class ProviderRecord:
+    """Typed data for a provider at a given time."""
+    service_id: str
+    timestamp: int
+    response_time_ms: float
+    throughput_kbps: float
+    cost: float
+    coords: Tuple[float, float]
+    qos: str | None
+    qos_prob: float
+    qos_volatility: float
+
+
+@dataclass
+class ConsumerRecord:
+    """Typed data for a consumer at a given time."""
     service_id: str
     timestamp: int
     response_time_ms: float
@@ -33,7 +48,7 @@ Assignment = List[int]
 Front = List[Tuple[float, float]]
 
 # (producers, consumers) at a time t
-TimeSlice = Tuple[List[dict], List[dict]]
+TimeSlice = Tuple[List[ProviderRecord], List[ConsumerRecord]]
 
 # t -> (producers, consumers)
 TimeSeries = Dict[int, TimeSlice]

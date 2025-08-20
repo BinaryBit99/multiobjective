@@ -1,7 +1,7 @@
 import numpy as np
 from ..config import Config
 from ..rng import RNGPool
-from ..types import ErrorType
+from ..types import ErrorType, ProviderRecord, ConsumerRecord
 from ..indicators import MetricsRecorder
 from ..pareto import crowding_distance
 
@@ -43,6 +43,7 @@ def run_mopso(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
     for t in range(cfg.num_times):
         rng = rng_pool.for_("pso", t)
         scs_rng = rng_pool.for_("scs", t)
+        prods: list[ProviderRecord]; cons: list[ConsumerRecord]
         prods, cons = records[t]
         D, P = len(cons), len(prods)
         # QoS/Cost matrices
@@ -57,9 +58,12 @@ def run_mopso(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
                     ou_params=OU_PARAMS_DEFAULT,
                     transition_matrix=transition_matrix,
                 )
-                r = prods[p].get("qos_prob",0.5); v = prods[p].get("qos_volatility",0.0)
-                base = (prods[p]["cost"] - curr_min) / (curr_max - curr_min + 1e-12)
-                c[p,j] = base * (1.0 + cfg.lambda_vol*v) / (max(r,1e-6)**cfg.gamma_qos)
+                r = prods[p].qos_prob
+                v = prods[p].qos_volatility
+                base = (prods[p].cost - curr_min) / (curr_max - curr_min + 1e-12)
+                c[p, j] = (
+                    base * (1.0 + cfg.lambda_vol * v) / (max(r, 1e-6) ** cfg.gamma_qos)
+                )
 
         # init swarm
         pos = rng.uniform(0, P-1, (cfg.pso.swarm_size, D)).astype(np.float32)

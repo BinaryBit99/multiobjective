@@ -1,5 +1,6 @@
 import math, numpy as np
 from typing import Literal
+from .types import ProviderRecord, ConsumerRecord
 
 QoSState = Literal["Low","Medium","High"]
 
@@ -17,22 +18,24 @@ def smooth_qos(prev_qos: QoSState, inferred_qos: QoSState, transition_matrix: di
     probs /= probs.sum() if probs.sum()>0 else 1.0
     return rng.choice(states, p=probs)
 
-def reg_err(p: dict, c: dict, kind: str) -> float:
+def reg_err(p: ProviderRecord, c: ConsumerRecord, kind: str) -> float:
     if kind == "tp":
-        prov, req = p["throughput_kbps"], c["throughput_kbps"]
-        if prov < req:   return (req - prov) / (req + 1e-12)
+        prov, req = p.throughput_kbps, c.throughput_kbps
+        if prov < req:
+            return (req - prov) / (req + 1e-12)
         if req < prov:
-            x = max(0.005*((prov-req)/(req+1e-12)), 1e-6)
-            return abs(0.5*math.log(x))
+            x = max(0.005 * ((prov - req) / (req + 1e-12)), 1e-6)
+            return abs(0.5 * math.log(x))
         return 0.0
     elif kind == "res":
-        prov, req = p["response_time_ms"], c["response_time_ms"]
+        prov, req = p.response_time_ms, c.response_time_ms
         if prov < req:
-            x = max(0.005*((req-prov)/(req+1e-12)), 1e-6)
-            return abs(0.5*math.log(x))
-        if req < prov:   return (prov-req) / (req + 1e-12)
+            x = max(0.005 * ((req - prov) / (req + 1e-12)), 1e-6)
+            return abs(0.5 * math.log(x))
+        if req < prov:
+            return (prov - req) / (req + 1e-12)
         return 0.0
     else:
         # relative
-        den = (c["response_time_ms"] + c["throughput_kbps"]) or 1.0
-        return abs(1 - ((p["response_time_ms"] + p["throughput_kbps"]) / den))
+        den = (c.response_time_ms + c.throughput_kbps) or 1.0
+        return abs(1 - ((p.response_time_ms + p.throughput_kbps) / den))

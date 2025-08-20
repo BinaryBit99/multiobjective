@@ -1,6 +1,6 @@
 from typing import Protocol, List
 import numpy as np, math
-from ..types import ErrorType
+from ..types import ErrorType, ProviderRecord, ConsumerRecord
 from ..config import Config
 from ..rng import RNGPool
 from ..metrics.scs import blended_error
@@ -21,8 +21,8 @@ class Individual:
 
     def evaluate(
         self,
-        prods,
-        cons,
+        prods: List[ProviderRecord],
+        cons: List[ConsumerRecord],
         err_type,
         norm_fn,
         t,
@@ -31,7 +31,7 @@ class Individual:
         cfg: Config,
         rng_pool: RNGPool,
         transition_matrix: dict | None = None,
-        ):
+    ):
         errs, costs = [], []
         for i, c in enumerate(cons):
             p = prods[self.genes[i]]
@@ -50,10 +50,10 @@ class Individual:
                 )
             )
 
-            r = p.get("qos_prob", 0.5)
-            v = p.get("qos_volatility", 0.0)
+            r = p.qos_prob
+            v = p.qos_volatility
             costs.append(
-                ctx_norm_cost(p["cost"], t, norm_fn)
+                ctx_norm_cost(p.cost, t, norm_fn)
                 * (1.0 + lambda_vol * v)
                 / (max(r, 1e-6) ** gamma_qos)
             )
