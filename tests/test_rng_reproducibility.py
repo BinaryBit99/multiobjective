@@ -2,6 +2,7 @@ import pytest
 
 from multiobjective.algorithms.base import Individual
 from multiobjective.rng import RNGPool
+from multiobjective.types import ProviderRecord, ConsumerRecord
 
 
 def norm_fn(kind, err, t):
@@ -10,21 +11,30 @@ def norm_fn(kind, err, t):
 
 def test_individual_evaluation_reproducible(cfg):
     prods = [
-        {
-            "coords": (0.0, 0.0),
-            "response_time_ms": 1,
-            "throughput_kbps": 1,
-            "cost": 1.0,
-            "qos_prob": 0.5,
-            "qos_volatility": 0.0,
-        }
+        ProviderRecord(
+            service_id="p1",
+            timestamp=0,
+            response_time_ms=1,
+            throughput_kbps=1,
+            cost=1.0,
+            coords=(0.0, 0.0),
+            qos=None,
+            qos_prob=0.5,
+            qos_volatility=0.0,
+        )
     ]
     cons = [
-        {
-            "coords": (0.0, 0.0),
-            "response_time_ms": 1,
-            "throughput_kbps": 1,
-        }
+        ConsumerRecord(
+            service_id="c1",
+            timestamp=0,
+            response_time_ms=1,
+            throughput_kbps=1,
+            cost=0.0,
+            coords=(0.0, 0.0),
+            qos=None,
+            qos_prob=0.0,
+            qos_volatility=0.0,
+        )
     ]
 
     def run(run_order):
