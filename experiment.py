@@ -76,8 +76,8 @@ def run_experiment(cfg: Config) -> dict:
             assign.append(min(scores)[1])
 
         scs_rng = rng_pool.for_("scs", t)
-        score_tp, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng)
-        score_res, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng)
+        score_tp, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg)
+        score_res, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg)
         mean_next_tp, _ = expected_scs_next(
             assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng, T
         )
