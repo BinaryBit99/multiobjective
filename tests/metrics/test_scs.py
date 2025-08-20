@@ -67,19 +67,18 @@ def test_expected_pair_scs_matches_product(cfg, monkeypatch):
         return original(*args, **kwargs)
     monkeypatch.setattr(scs_module, "mc_coverage_prob", wrapped_mc)
 
-    rng_cov = np.random.default_rng(7)
+    rng_ref = np.random.default_rng(7)
     rng_pair = np.random.default_rng(7)
-    p_cov = scs_module.mc_coverage_prob(
+    p_cov_ref = original(
         p_coords=p["coords"],
         c_coords=c["coords"],
         space_size=cfg.space_size,
         radius=radius,
         ou=ou,
-        rng=rng_cov,
+        rng=rng_ref,
         K=128,
     )
-    p_qos = qos_success_prob("Low", tm, fallback_prob=0.2)
-    combined = expected_pair_scs_tplus1(
+    cov_prob, qos_prob = expected_pair_scs_tplus1(
         provider_record=p,
         consumer_record=c,
         space_size=cfg.space_size,
@@ -88,11 +87,12 @@ def test_expected_pair_scs_matches_product(cfg, monkeypatch):
         rng=rng_pair,
         transition_matrix=tm,
         mc_rollouts=128,
-        cov_prob=p_cov,
-        qos_prob=p_qos,
     )
     assert call_count["n"] == 1
-    assert combined == pytest.approx(p_qos * p_cov)
+    p_qos_ref = qos_success_prob("Low", tm, fallback_prob=0.2)
+    assert cov_prob == pytest.approx(p_cov_ref)
+    assert qos_prob == pytest.approx(p_qos_ref)
+    assert cov_prob * qos_prob == pytest.approx(p_qos_ref * p_cov_ref)
 
 
 def test_expected_scs_next_calls_mc_once(cfg, rng, monkeypatch):
