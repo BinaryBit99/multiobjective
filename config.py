@@ -71,6 +71,8 @@ class Config:
     scs_lookahead_weight: float = 0.40      # set 0.0 to disable
     scs_mc_rollouts: int = 96               # 64–128 is typical
     scs: 'SCSConfig' = field(init=False)
+    _num_providers: int = field(init=False, repr=False)
+    _num_consumers: int = field(init=False, repr=False)
 
     # RNG
     master_seed: int = 42
@@ -81,6 +83,8 @@ class Config:
     gwo:  GWOConfig  = field(default_factory=GWOConfig)
 
     def __post_init__(self) -> None:
+        """Finalize derived configuration values."""
+
         # Lazily import to avoid circular dependencies at module import time.
         from .metrics.scs import SCSConfig
 
@@ -91,6 +95,11 @@ class Config:
             mc_samples=self.scs_mc_rollouts,
         )
 
+        # Pre-compute provider/consumer counts for quick access later.
+        l, r = _ratio_to_nums(self.ratio_str)
+        self._num_providers = round(self.num_services * (l / (l + r)))
+        self._num_consumers = self.num_services - self._num_providers
+
     # --- convenient computed properties ---
     @property
     def coverage_radius(self) -> float:
@@ -99,12 +108,11 @@ class Config:
 
     @property
     def num_providers(self) -> int:
-        l, r = _ratio_to_nums(self.ratio_str)
-        return round(self.num_services * (l / (l + r)))
+        return self._num_providers
 
     @property
     def num_consumers(self) -> int:
-        return self.num_services - self.num_providers
+        return self._num_consumers
 
 # --- functional helpers -----------------------------------------
 def coverage_radius(cfg: Config) -> float:
