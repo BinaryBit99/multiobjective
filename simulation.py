@@ -6,11 +6,11 @@ def OU_step(x_t, mu, theta, sigma, delta_t, rng):
     noise = rng.standard_normal(size=x_t.shape)
     return x_t + theta*(mu-x_t)*delta_t + sigma*np.sqrt(delta_t)*noise
 
-def generate_OU_trajectory(start_pos, mu, num_steps, theta, sigma, delta_t, rng):
+def generate_OU_trajectory(start_pos, mu, num_steps, theta, sigma, delta_t, rng, space):
     traj = [start_pos]
     for _ in range(num_steps):
         nxt = OU_step(traj[-1], mu, theta, sigma, delta_t, rng)
-        nxt = np.clip(nxt, [0.,0.], [float(_SPACE[0]), float(_SPACE[1])])
+        nxt = np.clip(nxt, [0.0, 0.0], [float(space[0]), float(space[1])])
         traj.append(nxt)
     return np.array(traj)
 
@@ -39,11 +39,7 @@ def euclidean_distance(p: dict, c: dict) -> float:
     (px,py), (cx,cy) = p["coords"], c["coords"]
     return math.sqrt((px-cx)**2 + (py-cy)**2)
 
-_SPACE = (100,100)  # overwritten by build_trajectories
-
 def build_trajectories(cfg: Config, rng_pool: RNGPool, num_providers: int, num_consumers: int) -> dict[str, np.ndarray]:
-    global _SPACE
-    _SPACE = cfg.space_size
     total = num_providers + num_consumers
     starts, mus = init_node_positions_and_means(
         total, cfg.spatial_distribution, cfg.space_size, cfg.num_clusters, cfg.cluster_spread,
@@ -53,7 +49,7 @@ def build_trajectories(cfg: Config, rng_pool: RNGPool, num_providers: int, num_c
     for i in range(total):
         rng = rng_pool.for_("ou_node", idx=i)
         traj = generate_OU_trajectory(
-            starts[i], mus[i], cfg.num_times, cfg.ou_theta, cfg.ou_sigma, cfg.delta_t, rng
+            starts[i], mus[i], cfg.num_times, cfg.ou_theta, cfg.ou_sigma, cfg.delta_t, rng, cfg.space_size
         )
         sid = f"p{i}" if i < num_providers else f"c{i-num_providers}"
         out[sid] = traj
