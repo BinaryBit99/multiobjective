@@ -1,11 +1,14 @@
 import numpy as np
 import pytest
+import importlib
+scs_module = importlib.import_module("multiobjective.metrics.scs")
 
 from multiobjective.metrics.scs import (
     _ou_step,
     mc_coverage_prob,
     qos_success_prob,
     expected_pair_scs_tplus1,
+    expected_scs_next,
     OUParams,
 )
 
@@ -39,7 +42,7 @@ def test_qos_success_prob():
     assert prob == pytest.approx(0.9)
 
 
-def test_expected_pair_scs_matches_product(cfg):
+def test_expected_pair_scs_matches_product(cfg, monkeypatch):
     p = {
         "coords": (0.0, 0.0),
         "qos": "Low",
@@ -55,9 +58,16 @@ def test_expected_pair_scs_matches_product(cfg):
     tm = {"Low": {"Medium": 0.6, "High": 0.3}}
     ou = OUParams(theta=0.0, sigma=1.0, delta_t=1.0)
     radius = 1.0
+    call_count = {"n": 0}
+    original = scs_module.mc_coverage_prob
+    def wrapped_mc(*args, **kwargs):
+        call_count["n"] += 1
+        return original(*args, **kwargs)
+    monkeypatch.setattr(scs_module, "mc_coverage_prob", wrapped_mc)
+
     rng_cov = np.random.default_rng(7)
     rng_pair = np.random.default_rng(7)
-    p_cov = mc_coverage_prob(
+    p_cov = scs_module.mc_coverage_prob(
         p_coords=p["coords"],
         c_coords=c["coords"],
         space_size=cfg.space_size,
@@ -76,5 +86,33 @@ def test_expected_pair_scs_matches_product(cfg):
         rng=rng_pair,
         transition_matrix=tm,
         mc_rollouts=128,
+        cov_prob=p_cov,
+        qos_prob=p_qos,
     )
+    assert call_count["n"] == 1
     assert combined == pytest.approx(p_qos * p_cov)
+
+
+def test_expected_scs_next_calls_mc_once(cfg, rng, monkeypatch):
+    call_count = {"n": 0}
+    original = scs_module.mc_coverage_prob
+    def wrapped_mc(*args, **kwargs):
+        call_count["n"] += 1
+        return original(*args, **kwargs)
+    monkeypatch.setattr(scs_module, "mc_coverage_prob", wrapped_mc)
+    p = {
+        "coords": (0.0, 0.0),
+        "qos": "Low",
+        "qos_prob": 0.2,
+        "response_time_ms": 1,
+        "throughput_kbps": 1,
+    }
+    c = {
+        "coords": (5.0, 0.0),
+        "response_time_ms": 1,
+        "throughput_kbps": 1,
+    }
+    assign = [0]
+    prev_assign = [0]
+    expected_scs_next(assign, ([p], [c]), prev_assign, cfg, cfg.scs, rng)
+    assert call_count["n"] == 1
