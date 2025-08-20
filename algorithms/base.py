@@ -5,6 +5,7 @@ from ..config import Config
 from ..rng import RNGPool
 from ..metrics.scs import blended_error
 from ..defaults import OU_PARAMS_DEFAULT
+from ..qos import _attr
 
 
 class Algorithm(Protocol):
@@ -51,10 +52,10 @@ class Individual:
                 )
             )
 
-            r = p.qos_prob
-            v = p.qos_volatility
+            r = _attr(p, "qos_prob")
+            v = _attr(p, "qos_volatility")
             costs.append(
-                ctx_norm_cost(p.cost, t, norm_fn)
+                ctx_norm_cost(_attr(p, "cost"), t, norm_fn)
                 * (1.0 + lambda_vol * v)
                 / (max(r, 1e-6) ** gamma_qos)
             )
