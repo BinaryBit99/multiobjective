@@ -6,6 +6,7 @@ import numpy as np
 from ..config import Config, coverage_radius
 from ..qos import reg_err
 from ..simulation import euclidean_distance
+from ..types import ProviderRecord, ConsumerRecord
 
 
 @dataclass
@@ -87,9 +88,9 @@ def qos_success_prob(
     return float(fallback_prob)
 
 def expected_pair_scs_tplus1(
-    provider_record: dict,
-    consumer_record: dict,
-    space_size: Tuple[float,float],
+    provider_record: ProviderRecord,
+    consumer_record: ConsumerRecord,
+    space_size: Tuple[float, float],
     radius: float,
     ou: OUParams,
     rng: np.random.Generator,
@@ -103,14 +104,14 @@ def expected_pair_scs_tplus1(
     Carlo coverage estimate.
     """
     p_qos_next = qos_success_prob(
-        provider_qos_now=provider_record.get("qos"),
+        provider_qos_now=provider_record.qos,
         transition_matrix=transition_matrix,
-        fallback_prob=provider_record.get("qos_prob", 0.5),
+        fallback_prob=provider_record.qos_prob,
     )
 
     p_cov_next = mc_coverage_prob(
-        p_coords=tuple(provider_record["coords"]),
-        c_coords=tuple(consumer_record["coords"]),
+        p_coords=provider_record.coords,
+        c_coords=consumer_record.coords,
         space_size=space_size,
         radius=radius,
         ou=ou,
@@ -121,8 +122,8 @@ def expected_pair_scs_tplus1(
 
 def blended_error(
     err_type: str,
-    p: dict,
-    c: dict,
+    p: ProviderRecord,
+    c: ConsumerRecord,
     t: int,
     cfg: Config,
     norm_fn,                   # your existing norm_err(kind, err, t)
@@ -161,7 +162,7 @@ def blended_error(
 
 def scs(
     assign: list[int],
-    pc: Tuple[list[dict], list[dict]],
+    pc: Tuple[list[ProviderRecord], list[ConsumerRecord]],
     prev_assign: Optional[list[int]],
     cfg: Config,
     scs_cfg: SCSConfig,
@@ -180,7 +181,7 @@ def scs(
 
         cont = float(prev_assign is not None and prev_assign[ci] == pi)
         cov = float(euclidean_distance(p, c) <= radius)
-        qos = float(p.get("qos") in {"Medium", "High"})
+        qos = float(p.qos in {"Medium", "High"})
 
         cont_total += cont
         cov_total += cov
@@ -197,7 +198,7 @@ def scs(
 
 def expected_scs_next(
     assign: list[int],
-    pc: Tuple[list[dict], list[dict]],
+    pc: Tuple[list[ProviderRecord], list[ConsumerRecord]],
     prev_assign: Optional[list[int]],
     cfg: Config,
     scs_cfg: SCSConfig,

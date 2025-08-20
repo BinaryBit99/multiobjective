@@ -6,6 +6,7 @@ from .indicators import MetricsRecorder
 from .streaks import StreakTracker
 from .metrics import SCSConfig, scs, expected_scs_next
 from .qos import reg_err
+from .types import ProviderRecord, ConsumerRecord
 
 def run_experiment(cfg: Config) -> dict:
     rng_pool = RNGPool(cfg.master_seed, cfg.num_times)
@@ -20,9 +21,9 @@ def run_experiment(cfg: Config) -> dict:
         tp_errs, res_errs = [], []
         for p in prods:
             for c in cons:
-                if _within(p,c,rad):
-                    tp_errs.append(reg_err(p,c,"tp"))
-                    res_errs.append(reg_err(p,c,"res"))
+                if _within(p, c, rad):
+                    tp_errs.append(reg_err(p, c, "tp"))
+                    res_errs.append(reg_err(p, c, "res"))
         per_time_bounds[f"{t}"] = (
             max(tp_errs), max(res_errs), min(tp_errs), min(res_errs),
             min(cost_per_dict[f"{t}"]), max(cost_per_dict[f"{t}"])
@@ -68,11 +69,11 @@ def run_experiment(cfg: Config) -> dict:
         prods, cons = records[t]
         # quick assignment snapshot: choose min normalized error+cost (greedy surrogate)
         assign = []
-        for ci,c in enumerate(cons):
+        for ci, c in enumerate(cons):
             scores = []
-            for pi,p in enumerate(prods):
-                e = 0.5*norm_err("tp", reg_err(p,c,"tp"), t) + 0.5*norm_err("res", reg_err(p,c,"res"), t)
-                scores.append((e + norm_err("__cost__", p["cost"], t), pi))
+            for pi, p in enumerate(prods):
+                e = 0.5 * norm_err("tp", reg_err(p, c, "tp"), t) + 0.5 * norm_err("res", reg_err(p, c, "res"), t)
+                scores.append((e + norm_err("__cost__", p.cost, t), pi))
             assign.append(min(scores)[1])
 
         scs_rng = rng_pool.for_("scs", t)
@@ -91,7 +92,7 @@ def run_experiment(cfg: Config) -> dict:
         scs_series["E_res"].append(mean_next_res)
 
         # update continuity state
-        prev_assign = {cons[i]["service_id"]: prods[assign[i]]["service_id"] for i in range(len(cons))}
+        prev_assign = {cons[i].service_id: prods[assign[i]].service_id for i in range(len(cons))}
 
     return {
         "series": outputs,
@@ -104,7 +105,8 @@ def run_experiment(cfg: Config) -> dict:
         }
     }
 
-def _within(p, c, radius):  # local
-    (px,py), (cx,cy) = p["coords"], c["coords"]
-    dx = px-cx; dy = py-cy
-    return (dx*dx + dy*dy) ** 0.5 <= radius
+def _within(p: ProviderRecord, c: ConsumerRecord, radius: float) -> bool:  # local
+    (px, py), (cx, cy) = p.coords, c.coords
+    dx = px - cx
+    dy = py - cy
+    return (dx * dx + dy * dy) ** 0.5 <= radius

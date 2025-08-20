@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import importlib
+from multiobjective.types import ProviderRecord, ConsumerRecord
 scs_module = importlib.import_module("multiobjective.metrics.scs")
 
 from multiobjective.metrics.scs import (
@@ -65,18 +66,28 @@ def test_qos_success_prob():
 
 
 def test_expected_pair_scs_matches_product(cfg, monkeypatch):
-    p = {
-        "coords": (0.0, 0.0),
-        "qos": "Low",
-        "qos_prob": 0.2,
-        "response_time_ms": 1,
-        "throughput_kbps": 1,
-    }
-    c = {
-        "coords": (5.0, 0.0),
-        "response_time_ms": 1,
-        "throughput_kbps": 1,
-    }
+    p = ProviderRecord(
+        service_id="p0",
+        timestamp=0,
+        response_time_ms=1,
+        throughput_kbps=1,
+        cost=0.0,
+        coords=(0.0, 0.0),
+        qos="Low",
+        qos_prob=0.2,
+        qos_volatility=0.0,
+    )
+    c = ConsumerRecord(
+        service_id="c0",
+        timestamp=0,
+        response_time_ms=1,
+        throughput_kbps=1,
+        cost=0.0,
+        coords=(5.0, 0.0),
+        qos=None,
+        qos_prob=0.0,
+        qos_volatility=0.0,
+    )
     tm = {"Low": {"Medium": 0.6, "High": 0.3}}
     ou = OUParams(theta=0.0, sigma=1.0, delta_t=1.0)
     radius = 1.0
@@ -90,8 +101,8 @@ def test_expected_pair_scs_matches_product(cfg, monkeypatch):
     rng_ref = np.random.default_rng(7)
     rng_pair = np.random.default_rng(7)
     p_cov_ref = original(
-        p_coords=p["coords"],
-        c_coords=c["coords"],
+        p_coords=p.coords,
+        c_coords=c.coords,
         space_size=cfg.space_size,
         radius=radius,
         ou=ou,
@@ -118,22 +129,34 @@ def test_expected_pair_scs_matches_product(cfg, monkeypatch):
 def test_expected_scs_next_calls_mc_once(cfg, rng, monkeypatch):
     call_count = {"n": 0}
     original = scs_module.mc_coverage_prob
+
     def wrapped_mc(*args, **kwargs):
         call_count["n"] += 1
         return original(*args, **kwargs)
+
     monkeypatch.setattr(scs_module, "mc_coverage_prob", wrapped_mc)
-    p = {
-        "coords": (0.0, 0.0),
-        "qos": "Low",
-        "qos_prob": 0.2,
-        "response_time_ms": 1,
-        "throughput_kbps": 1,
-    }
-    c = {
-        "coords": (5.0, 0.0),
-        "response_time_ms": 1,
-        "throughput_kbps": 1,
-    }
+    p = ProviderRecord(
+        service_id="p0",
+        timestamp=0,
+        response_time_ms=1,
+        throughput_kbps=1,
+        cost=0.0,
+        coords=(0.0, 0.0),
+        qos="Low",
+        qos_prob=0.2,
+        qos_volatility=0.0,
+    )
+    c = ConsumerRecord(
+        service_id="c0",
+        timestamp=0,
+        response_time_ms=1,
+        throughput_kbps=1,
+        cost=0.0,
+        coords=(5.0, 0.0),
+        qos=None,
+        qos_prob=0.0,
+        qos_volatility=0.0,
+    )
     assign = [0]
     prev_assign = [0]
     expected_scs_next(assign, ([p], [c]), prev_assign, cfg, cfg.scs, rng)

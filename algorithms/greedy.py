@@ -1,6 +1,6 @@
 from typing import Tuple, List
 import numpy as np
-from ..types import ErrorType
+from ..types import ErrorType, ProviderRecord, ConsumerRecord
 from ..config import Config, coverage_radius
 from ..rng import RNGPool
 from ..simulation import euclidean_distance
@@ -28,9 +28,11 @@ def greedy_run(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
         matched = []
         for c in cons:
             scores, idxs = [], []
-            for i,p in enumerate(prods):
-                if euclidean_distance(p,c) > radius: continue
-                r = p.get("qos_prob",0.5); v = p.get("qos_volatility",0.0)
+            for i, p in enumerate(prods):
+                if euclidean_distance(p, c) > radius:
+                    continue
+                r = p.qos_prob
+                v = p.qos_volatility
             
                 
                 err_for_score = blended_error(
@@ -38,24 +40,29 @@ def greedy_run(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
                     ou_params=OU_PARAMS_DEFAULT,
                     transition_matrix=transition_matrix,
                 )
-                score = (err_for_score *
-                        cost_norm(p['cost']) *
-                        (1.0 + cfg.lambda_vol * v) /
-                        (max(r,1e-6)**cfg.gamma_qos))
+                score = (
+                    err_for_score
+                    * cost_norm(p.cost)
+                    * (1.0 + cfg.lambda_vol * v)
+                    / (max(r, 1e-6) ** cfg.gamma_qos)
+                )
 
                 scores.append(score); idxs.append(i)
-            if not idxs: raise RuntimeError(f"No providers within coverage for c={c['service_id']} at t={t}")
+            if not idxs:
+                raise RuntimeError(
+                    f"No providers within coverage for c={c.service_id} at t={t}"
+                )
             best_i = idxs[int(np.argmin(scores))]
             p = prods[best_i]
             # streak continuity bookkeeping
-            streaks.update(t, f"c{c['service_id'][1:]}", f"p{p['service_id'][1:]}")
+            streaks.update(t, f"c{c.service_id[1:]}", f"p{p.service_id[1:]}")
             e = blended_error(
                 err_type, p, c, t, cfg, norm_fn, scs_rng,
                 ou_params=OU_PARAMS_DEFAULT,
                 transition_matrix=transition_matrix,
             )
 
-            matched.append((e, cost_norm(p['cost'])))
+            matched.append((e, cost_norm(p.cost)))
 
         avg_err = float(np.mean([m[0] for m in matched])); avg_cost=float(np.mean([m[1] for m in matched]))
         std_err = float(np.std([m[0] for m in matched])) if len(matched)>1 else 0.0

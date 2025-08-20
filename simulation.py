@@ -1,6 +1,7 @@
 import numpy as np, math
 from .config import Config
 from .rng import RNGPool
+from .types import ProviderRecord, ConsumerRecord
 
 def OU_step(x_t, mu, theta, sigma, delta_t, rng):
     noise = rng.standard_normal(size=x_t.shape)
@@ -35,9 +36,9 @@ def init_node_positions_and_means(total_nodes, distribution, space, num_clusters
         raise ValueError(f"Unknown distribution {distribution}")
     return np.array(starts), np.array(means)
 
-def euclidean_distance(p: dict, c: dict) -> float:
-    (px,py), (cx,cy) = p["coords"], c["coords"]
-    return math.sqrt((px-cx)**2 + (py-cy)**2)
+def euclidean_distance(p: ProviderRecord, c: ConsumerRecord) -> float:
+    (px, py), (cx, cy) = p.coords, c.coords
+    return math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
 
 def build_trajectories(cfg: Config, rng_pool: RNGPool, num_providers: int, num_consumers: int) -> dict[str, np.ndarray]:
     total = num_providers + num_consumers
