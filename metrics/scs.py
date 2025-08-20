@@ -138,7 +138,8 @@ def blended_error(
     """
     base = norm_fn(err_type, reg_err(p, c, err_type), t)
     scs_cfg = cfg.scs
-    if not scs_cfg.enabled:
+    # If SCS is disabled or records lack QoS information, return base error.
+    if not scs_cfg.enabled or isinstance(p, dict) or isinstance(c, dict):
         return base
 
     ou = ou_params or OUParams(cfg.ou_theta, cfg.ou_sigma, cfg.delta_t)
