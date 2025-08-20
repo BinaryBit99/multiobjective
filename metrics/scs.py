@@ -93,39 +93,29 @@ def expected_pair_scs_tplus1(
     rng: np.random.Generator,
     transition_matrix: Optional[Dict[str, Dict[str, float]]] = None,
     mc_rollouts: int = 128,
-    cov_prob: Optional[float] = None,
-    qos_prob: Optional[float] = None,
-) -> float:
-    """Estimate SCS for a provider/consumer pair one step ahead.
+) -> Tuple[float, float]:
+    """Estimate next-step coverage and QoS success probabilities.
 
-    Optional ``cov_prob`` and ``qos_prob`` allow callers to supply
-    pre-computed coverage and QoS success probabilities, avoiding
-    redundant Monte Carlo work.
+    The caller can combine these probabilities to form the expected
+    service-continuity success for the pair without re-running the Monte
+    Carlo coverage estimate.
     """
-    p_qos_next = (
-        qos_success_prob(
-            provider_qos_now=provider_record.get("qos"),
-            transition_matrix=transition_matrix,
-            fallback_prob=provider_record.get("qos_prob", 0.5),
-        )
-        if qos_prob is None
-        else float(qos_prob)
+    p_qos_next = qos_success_prob(
+        provider_qos_now=provider_record.get("qos"),
+        transition_matrix=transition_matrix,
+        fallback_prob=provider_record.get("qos_prob", 0.5),
     )
 
-    p_cov_next = (
-        mc_coverage_prob(
-            p_coords=tuple(provider_record["coords"]),
-            c_coords=tuple(consumer_record["coords"]),
-            space_size=space_size,
-            radius=radius,
-            ou=ou,
-            rng=rng,
-            K=mc_rollouts,
-        )
-        if cov_prob is None
-        else float(cov_prob)
+    p_cov_next = mc_coverage_prob(
+        p_coords=tuple(provider_record["coords"]),
+        c_coords=tuple(consumer_record["coords"]),
+        space_size=space_size,
+        radius=radius,
+        ou=ou,
+        rng=rng,
+        K=mc_rollouts,
     )
-    return p_cov_next * p_qos_next
+    return p_cov_next, p_qos_next
 
 def blended_error(
     err_type: str,
@@ -152,7 +142,7 @@ def blended_error(
     radius = coverage_radius(cfg)
     samples = mc_rollouts if mc_rollouts is not None else scs_cfg.mc_samples
 
-    e_scs = expected_pair_scs_tplus1(
+    cov_prob, qos_prob = expected_pair_scs_tplus1(
         provider_record=p,
         consumer_record=c,
         space_size=cfg.space_size,
@@ -162,6 +152,7 @@ def blended_error(
         transition_matrix=transition_matrix,
         mc_rollouts=samples,
     )
+    e_scs = cov_prob * qos_prob
     w = scs_cfg.weight
     return (1.0 - w) * base + w * (1.0 - e_scs)
 
@@ -229,21 +220,7 @@ def expected_scs_next(
         p = prods[pi]
 
         cont = float(prev_assign is not None and prev_assign[ci] == pi)
-        qos_prob = qos_success_prob(
-            provider_qos_now=p.get("qos"),
-            transition_matrix=transition_matrix,
-            fallback_prob=p.get("qos_prob", 0.5),
-        )
-        cov_prob = mc_coverage_prob(
-            p_coords=tuple(p["coords"]),
-            c_coords=tuple(c["coords"]),
-            space_size=cfg.space_size,
-            radius=radius,
-            ou=ou,
-            rng=rng,
-            K=samples,
-        )
-        pair_est = expected_pair_scs_tplus1(
+        cov_prob, qos_prob = expected_pair_scs_tplus1(
             provider_record=p,
             consumer_record=c,
             space_size=cfg.space_size,
@@ -252,14 +229,12 @@ def expected_scs_next(
             rng=rng,
             transition_matrix=transition_matrix,
             mc_rollouts=samples,
-            cov_prob=cov_prob,
-            qos_prob=qos_prob,
         )
 
         cont_total += cont
         cov_total += cov_prob
         qos_total += qos_prob
-        success_total += cont * pair_est
+        success_total += cont * cov_prob * qos_prob
 
     cont_avg = cont_total / num_c
     cov_avg = cov_total / num_c
