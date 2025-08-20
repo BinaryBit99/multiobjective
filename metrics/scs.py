@@ -59,19 +59,21 @@ def mc_coverage_prob(
     if K <= 0:
         return 0.0
 
-    # Draw all noise terms in one go.  The array is shaped to preserve the
-    # original ordering of random numbers: for each step we first draw the
-    # provider noise and then the consumer noise.
-    noise = rng.standard_normal((K, 2, 2))
+    # Generate provider and consumer perturbations in one vectorized call. The
+    # flattened layout preserves the original random-number ordering where each
+    # provider sample is immediately followed by its paired consumer sample.
+    noise = rng.standard_normal((K, 4))
+    noise_p = noise[:, :2]
+    noise_c = noise[:, 2:]
+
     drift_p = p + ou.theta * (mu_p - p) * ou.delta_t
     drift_c = c + ou.theta * (mu_c - c) * ou.delta_t
     scale = ou.sigma * np.sqrt(ou.delta_t)
-    p1 = _clip_box(drift_p + scale * noise[:, 0, :], space_size)
-    c1 = _clip_box(drift_c + scale * noise[:, 1, :], space_size)
+    p1 = _clip_box(drift_p + scale * noise_p, space_size)
+    c1 = _clip_box(drift_c + scale * noise_c, space_size)
 
     dists = np.linalg.norm(p1 - c1, axis=1)
-    hits = np.count_nonzero(dists <= radius)
-    return hits / K
+    return np.count_nonzero(dists <= radius) / K
 
 def qos_success_prob(
     provider_qos_now: Optional[str],
