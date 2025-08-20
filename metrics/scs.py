@@ -15,6 +15,12 @@ class SCSConfig:
     weight: float = 0.40
     mc_samples: int = 96
 
+    def __post_init__(self) -> None:
+        if not (0.0 <= self.weight <= 1.0):
+            raise ValueError("weight must be between 0.0 and 1.0")
+        if self.mc_samples <= 0:
+            raise ValueError("mc_samples must be positive")
+
 
 @dataclass
 class SCSComponents:

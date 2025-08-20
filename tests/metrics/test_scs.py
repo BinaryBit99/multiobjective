@@ -7,6 +7,7 @@ from multiobjective.metrics.scs import (
     qos_success_prob,
     expected_pair_scs_tplus1,
     OUParams,
+    SCSConfig,
 )
 
 
@@ -78,3 +79,15 @@ def test_expected_pair_scs_matches_product(cfg):
         mc_rollouts=128,
     )
     assert combined == pytest.approx(p_qos * p_cov)
+
+
+def test_scs_config_weight_bounds():
+    with pytest.raises(ValueError):
+        SCSConfig(weight=-0.1)
+    with pytest.raises(ValueError):
+        SCSConfig(weight=1.1)
+
+
+def test_scs_config_mc_samples_positive():
+    with pytest.raises(ValueError):
+        SCSConfig(mc_samples=0)
