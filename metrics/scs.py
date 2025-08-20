@@ -56,14 +56,22 @@ def mc_coverage_prob(
     center = np.array(space_size, dtype=float) / 2.0
     mu_p = center if mean_p is None else np.asarray(mean_p, dtype=float)
     mu_c = center if mean_c is None else np.asarray(mean_c, dtype=float)
+    if K <= 0:
+        return 0.0
 
-    hits = 0
-    for _ in range(K):
-        p1 = _clip_box(_ou_step(p, mu_p, ou, rng), space_size)
-        c1 = _clip_box(_ou_step(c, mu_c, ou, rng), space_size)
-        if np.linalg.norm(p1 - c1) <= radius:
-            hits += 1
-    return hits / max(K, 1)
+    # Draw all noise terms in one go.  The array is shaped to preserve the
+    # original ordering of random numbers: for each step we first draw the
+    # provider noise and then the consumer noise.
+    noise = rng.standard_normal((K, 2, 2))
+    drift_p = p + ou.theta * (mu_p - p) * ou.delta_t
+    drift_c = c + ou.theta * (mu_c - c) * ou.delta_t
+    scale = ou.sigma * np.sqrt(ou.delta_t)
+    p1 = _clip_box(drift_p + scale * noise[:, 0, :], space_size)
+    c1 = _clip_box(drift_c + scale * noise[:, 1, :], space_size)
+
+    dists = np.linalg.norm(p1 - c1, axis=1)
+    hits = np.count_nonzero(dists <= radius)
+    return hits / K
 
 def qos_success_prob(
     provider_qos_now: Optional[str],

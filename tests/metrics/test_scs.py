@@ -31,6 +31,8 @@ def test_mc_coverage_prob_increases_with_radius():
     p_small = mc_coverage_prob(radius=1.0, rng=rng_small, **kwargs)
     p_large = mc_coverage_prob(radius=3.0, rng=rng_large, **kwargs)
     assert p_small <= p_large
+    assert p_small == pytest.approx(0.0)
+    assert p_large == pytest.approx(0.078125)
 
 
 def test_qos_success_prob():
