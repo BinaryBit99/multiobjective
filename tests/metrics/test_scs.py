@@ -22,6 +22,18 @@ def test_ou_step_moves_toward_mean(rng):
 
 
 def test_mc_coverage_prob_increases_with_radius():
+    def mc_cov_loop(radius, rng, *, p_coords, c_coords, space_size, ou, K):
+        p = np.asarray(p_coords, dtype=float)
+        c = np.asarray(c_coords, dtype=float)
+        center = np.array(space_size, dtype=float) / 2.0
+        hits = 0
+        for _ in range(K):
+            p1 = np.clip(_ou_step(p, center, ou, rng), (0.0, 0.0), space_size)
+            c1 = np.clip(_ou_step(c, center, ou, rng), (0.0, 0.0), space_size)
+            if np.linalg.norm(p1 - c1) <= radius:
+                hits += 1
+        return hits / K
+
     kwargs = dict(
         p_coords=(0.0, 0.0),
         c_coords=(5.0, 0.0),
@@ -29,11 +41,19 @@ def test_mc_coverage_prob_increases_with_radius():
         ou=OUParams(theta=0.0, sigma=1.0, delta_t=1.0),
         K=256,
     )
-    rng_small = np.random.default_rng(42)
-    rng_large = np.random.default_rng(42)
-    p_small = mc_coverage_prob(radius=1.0, rng=rng_small, **kwargs)
-    p_large = mc_coverage_prob(radius=3.0, rng=rng_large, **kwargs)
+    rng_small_vec = np.random.default_rng(42)
+    rng_small_loop = np.random.default_rng(42)
+    p_small = mc_coverage_prob(radius=1.0, rng=rng_small_vec, **kwargs)
+    p_small_ref = mc_cov_loop(radius=1.0, rng=rng_small_loop, **kwargs)
+
+    rng_large_vec = np.random.default_rng(42)
+    rng_large_loop = np.random.default_rng(42)
+    p_large = mc_coverage_prob(radius=3.0, rng=rng_large_vec, **kwargs)
+    p_large_ref = mc_cov_loop(radius=3.0, rng=rng_large_loop, **kwargs)
+
     assert p_small <= p_large
+    assert p_small == pytest.approx(p_small_ref)
+    assert p_large == pytest.approx(p_large_ref)
     assert p_small == pytest.approx(0.0)
     assert p_large == pytest.approx(0.078125)
 
