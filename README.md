@@ -25,3 +25,42 @@ python examples/plot_results.py
 
 The script runs `run_experiment` with a tiny configuration and displays error
 and cost trends for two algorithms alongside their final error–cost tradeoff.
+
+### Plotting CLI results
+
+To visualise the output from a CLI run saved to `results.json`, first execute:
+
+```bash
+python -m multiobjective.cli run --out results.json
+```
+
+Then load the JSON and generate plots:
+
+```bash
+python - <<'PY'
+import json
+from multiobjective.plotting import plot_metric_over_time, plot_tradeoff
+
+# Load CLI output
+with open("results.json") as f:
+    results = json.load(f)
+
+series = results["series"]
+times = range(len(next(iter(series.values()))["errors"]["tp"]))
+algs = list(series)
+
+# Plot trajectories
+plot_metric_over_time(times,
+    [series[a]["errors"]["tp"] for a in algs],
+    algs, "Topology error over time", "Normalised error")
+plot_metric_over_time(times,
+    [series[a]["costs"]["tp"] for a in algs],
+    algs, "Cost over time", "Normalised cost")
+
+# Plot final trade-off
+plot_tradeoff(
+    [series[a]["errors"]["tp"][-1] for a in algs],
+    [series[a]["costs"]["tp"][-1] for a in algs],
+    algs, "Final error–cost tradeoff")
+PY
+```
