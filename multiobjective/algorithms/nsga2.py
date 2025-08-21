@@ -92,9 +92,9 @@ def run_nsga2(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
         best_fronts.append(best)
 
     # return mean series over time from best fronts
-    mean_err = [np.mean([e for e,_ in bf]) if bf else 0.0 for bf in best_fronts]
-    mean_cost= [np.mean([c for _,c in bf]) if bf else 0.0 for bf in best_fronts]
-    std_err  = [np.std([e for e,_ in bf]) if len(bf)>1 else 0.0 for bf in best_fronts]
+    mean_err = [float(np.mean([e for e,_ in bf])) if bf else 0.0 for bf in best_fronts]
+    mean_cost= [float(np.mean([c for _,c in bf])) if bf else 0.0 for bf in best_fronts]
+    std_err  = [float(np.std([e for e,_ in bf])) if len(bf)>1 else 0.0 for bf in best_fronts]
     return mean_err, mean_cost, std_err
 
 def _sbx(p1, p2, eta, pc, rng, D, P):
