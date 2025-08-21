@@ -87,7 +87,9 @@ def run_mogwo(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
                 arr_pos, arr_obj = zip(*archive)
                 cd = crowding_distance(list(arr_obj))
                 idx = np.argsort(cd)[::-1]
-                alpha, beta, delta = arr_pos[idx[0]], arr_pos[idx[1]], arr_pos[idx[2]]
+                alpha = arr_pos[idx[0]]
+                beta = arr_pos[idx[1]] if len(arr_pos) > 1 else alpha
+                delta = arr_pos[idx[2]] if len(arr_pos) > 2 else beta
             else:
                 alpha = beta = delta = wolves[0]
 
