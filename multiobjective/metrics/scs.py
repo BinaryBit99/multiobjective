@@ -8,6 +8,8 @@ from ..qos import reg_err
 from ..simulation import euclidean_distance
 from ..types import ProviderRecord, ConsumerRecord
 
+PrevAssign = Dict[int, int] | list[int] | tuple[int, ...]
+
 
 @dataclass
 class SCSConfig:
@@ -161,10 +163,19 @@ def blended_error(
     return (1.0 - w) * base + w * (1.0 - e_scs)
 
 
+def _continuity(prev_assign: Optional[PrevAssign], ci: int, pi: int) -> float:
+    if isinstance(prev_assign, (list, tuple)):
+        if ci < len(prev_assign):
+            return float(prev_assign[ci] == pi)
+    elif isinstance(prev_assign, dict):
+        return float(prev_assign.get(ci) == pi)
+    return 0.0
+
+
 def scs(
     assign: list[int],
     pc: Tuple[list[ProviderRecord], list[ConsumerRecord]],
-    prev_assign: Optional[list[int]],
+    prev_assign: Optional[PrevAssign],
     cfg: Config,
     scs_cfg: SCSConfig,
 ) -> Tuple[float, SCSComponents]:
@@ -180,7 +191,7 @@ def scs(
         pi = assign[ci]
         p = prods[pi]
 
-        cont = float(prev_assign is not None and prev_assign[ci] == pi)
+        cont = _continuity(prev_assign, ci, pi)
         cov = float(euclidean_distance(p, c) <= radius)
         qos = float(p.qos in {"Medium", "High"})
 
@@ -200,7 +211,7 @@ def scs(
 def expected_scs_next(
     assign: list[int],
     pc: Tuple[list[ProviderRecord], list[ConsumerRecord]],
-    prev_assign: Optional[list[int]],
+    prev_assign: Optional[PrevAssign],
     cfg: Config,
     scs_cfg: SCSConfig,
     rng: np.random.Generator,
@@ -222,7 +233,7 @@ def expected_scs_next(
         pi = assign[ci]
         p = prods[pi]
 
-        cont = float(prev_assign is not None and prev_assign[ci] == pi)
+        cont = _continuity(prev_assign, ci, pi)
         cov_prob, qos_prob = expected_pair_scs_tplus1(
             provider_record=p,
             consumer_record=c,

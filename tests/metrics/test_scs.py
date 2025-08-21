@@ -10,6 +10,7 @@ from multiobjective.metrics.scs import (
     qos_success_prob,
     expected_pair_scs_tplus1,
     expected_scs_next,
+    scs,
     OUParams,
 )
 
@@ -161,3 +162,73 @@ def test_expected_scs_next_calls_mc_once(cfg, rng, monkeypatch):
     prev_assign = [0]
     expected_scs_next(assign, ([p], [c]), prev_assign, cfg, cfg.scs, rng)
     assert call_count["n"] == 1
+
+
+def _make_records():
+    p0 = ProviderRecord(
+        service_id="p0",
+        timestamp=0,
+        response_time_ms=0.0,
+        throughput_kbps=0.0,
+        cost=0.0,
+        coords=(0.0, 0.0),
+        qos="High",
+        qos_prob=1.0,
+        qos_volatility=0.0,
+    )
+    p1 = ProviderRecord(
+        service_id="p1",
+        timestamp=0,
+        response_time_ms=0.0,
+        throughput_kbps=0.0,
+        cost=0.0,
+        coords=(0.0, 0.0),
+        qos="High",
+        qos_prob=1.0,
+        qos_volatility=0.0,
+    )
+    c0 = ConsumerRecord(
+        service_id="c0",
+        timestamp=0,
+        response_time_ms=0.0,
+        throughput_kbps=0.0,
+        cost=0.0,
+        coords=(0.0, 0.0),
+        qos=None,
+        qos_prob=0.0,
+        qos_volatility=0.0,
+    )
+    c1 = ConsumerRecord(
+        service_id="c1",
+        timestamp=0,
+        response_time_ms=0.0,
+        throughput_kbps=0.0,
+        cost=0.0,
+        coords=(0.0, 0.0),
+        qos=None,
+        qos_prob=0.0,
+        qos_volatility=0.0,
+    )
+    return [p0, p1], [c0, c1]
+
+
+def test_scs_continuity_prev_assign_types(cfg):
+    prods, cons = _make_records()
+    assign = [0, 1]
+    _, comps = scs(assign, (prods, cons), [0], cfg, cfg.scs)
+    assert comps.continuity == pytest.approx(0.5)
+    _, comps = scs(assign, (prods, cons), {0: 0}, cfg, cfg.scs)
+    assert comps.continuity == pytest.approx(0.5)
+    _, comps = scs(assign, (prods, cons), {0: 0, 1: 1}, cfg, cfg.scs)
+    assert comps.continuity == pytest.approx(1.0)
+
+
+def test_expected_scs_next_continuity_prev_assign_types(cfg, rng):
+    prods, cons = _make_records()
+    assign = [0, 1]
+    _, comps = expected_scs_next(assign, (prods, cons), [0], cfg, cfg.scs, rng, mc_rollouts=0)
+    assert comps.continuity == pytest.approx(0.5)
+    _, comps = expected_scs_next(assign, (prods, cons), {0: 0}, cfg, cfg.scs, rng, mc_rollouts=0)
+    assert comps.continuity == pytest.approx(0.5)
+    _, comps = expected_scs_next(assign, (prods, cons), {0: 0, 1: 1}, cfg, cfg.scs, rng, mc_rollouts=0)
+    assert comps.continuity == pytest.approx(1.0)
