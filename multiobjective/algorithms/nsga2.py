@@ -55,12 +55,15 @@ def run_nsga2(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
                 p1 = tournament_select(pop, cfg.nsga.tournament_size, rng)
                 p2 = tournament_select(pop, cfg.nsga.tournament_size, rng)
                 c1, c2 = _sbx(p1, p2, cfg.nsga.crossover_eta, pc, rng, len(cons), len(prods))
-                #_eval(c1, prods, cons, err_type, norm_fn, t, cfg); _eval(c2, prods, cons, err_type, norm_fn, t, cfg)
-                _eval(c1, prods, cons, err_type, norm_fn, t, cfg, rng, transition_matrix)
-                _eval(c2, prods, cons, err_type, norm_fn, t, cfg, rng, transition_matrix)
-                m1 = _poly_mut(c1, cfg.nsga.mutation_eta, pm, rng, len(prods), cons); _eval(m1, prods, cons, err_type, norm_fn, t, cfg); off.append(m1)
+                _eval(c1, prods, cons, err_type, norm_fn, t, cfg, rng_pool, transition_matrix)
+                _eval(c2, prods, cons, err_type, norm_fn, t, cfg, rng_pool, transition_matrix)
+                m1 = _poly_mut(c1, cfg.nsga.mutation_eta, pm, rng, len(prods), cons)
+                _eval(m1, prods, cons, err_type, norm_fn, t, cfg, rng_pool, transition_matrix)
+                off.append(m1)
                 if len(off) < pop_size:
-                    m2 = _poly_mut(c2, cfg.nsga.mutation_eta, pm, rng, len(prods), cons); _eval(m2, prods, cons, err_type, norm_fn, t, cfg); off.append(m2)
+                    m2 = _poly_mut(c2, cfg.nsga.mutation_eta, pm, rng, len(prods), cons)
+                    _eval(m2, prods, cons, err_type, norm_fn, t, cfg, rng_pool, transition_matrix)
+                    off.append(m2)
 
             combined = pop + off
             fronts = fast_non_dominated_sort(combined)

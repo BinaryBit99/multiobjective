@@ -3,7 +3,7 @@ from .config import Config, coverage_radius
 from .rng import RNGPool
 from .data import RecordBuilder
 from .indicators import MetricsRecorder
-from .streaks import StreakTracker
+from .streaks import StreakTracker, sid_to_pid_cid
 from .metrics import SCSConfig, scs, expected_scs_next
 from .qos import reg_err
 from .types import ProviderRecord, ConsumerRecord
@@ -40,7 +40,7 @@ def run_experiment(cfg: Config) -> dict:
         raise ValueError(kind)
 
     # trackers & metrics
-    consumer_ids = [f"c{i+1}" for i in range(num_consumers)]
+    consumer_ids = [sid_to_pid_cid(sid, num_providers) for sid in consumers]
     streaks = StreakTracker(consumer_ids, cfg.num_times)
     metrics = MetricsRecorder(cfg.num_times)
 
@@ -49,11 +49,31 @@ def run_experiment(cfg: Config) -> dict:
     outputs = {}
     for alg_name, fn in ALG_REGISTRY.items():
         series = {}
-        for te in ["tp","res"]:
-            errs, costs, stds = fn(cfg, rng_pool, records, cost_per_dict, te, metrics, streaks, norm_err)
+        for te in ["tp", "res"]:
+            if alg_name == "greedy":
+                errs, costs, stds = fn(
+                    cfg,
+                    rng_pool,
+                    records,
+                    cost_per_dict,
+                    te,
+                    metrics,
+                    streaks,
+                    norm_err,
+                )
+            else:
+                errs, costs, stds = fn(
+                    cfg,
+                    rng_pool,
+                    records,
+                    cost_per_dict,
+                    te,
+                    metrics,
+                    norm_err,
+                )
             series.setdefault("errors", {})[te] = errs
-            series.setdefault("costs", {})[te]  = costs
-            series.setdefault("stds", {})[te]   = stds
+            series.setdefault("costs", {})[te] = costs
+            series.setdefault("stds", {})[te] = stds
         outputs[alg_name] = series
 
     # compute indicators from logged fronts
