@@ -22,7 +22,11 @@ sys.path.append(str(_parent))
 import numpy as np
 from multiobjective.config import Config, NSGAConfig, PSOConfig, GWOConfig, coverage_radius
 from multiobjective.experiment import run_experiment
-from multiobjective.plotting import plot_metric_over_time, plot_tradeoff
+from multiobjective.plotting import (
+    plot_metric_over_time,
+    plot_metric_with_std,
+    plot_tradeoff,
+)
 from multiobjective.simulation import euclidean_distance
 from multiobjective.metrics.scs import blended_error
 from multiobjective.defaults import OU_PARAMS_DEFAULT
@@ -110,12 +114,20 @@ def main() -> None:
     # Choose the algorithms to visualise
     algs = ["random", "min_cost"]
     error_series = [series[a]["errors"]["tp"] for a in algs]
+    std_series = [series[a]["stds"]["tp"] for a in algs]
     cost_series = [series[a]["costs"]["tp"] for a in algs]
     res_error_series = [series[a]["errors"]["res"] for a in algs]
     res_cost_series = [series[a]["costs"]["res"] for a in algs]
 
-    # Plot error and cost trajectories
-    plot_metric_over_time(times, error_series, algs, "Topology error over time", "Normalised error")
+    # Plot error and cost trajectories (error with variability)
+    plot_metric_with_std(
+        times,
+        error_series,
+        std_series,
+        algs,
+        "Topology error over time",
+        "Normalised error",
+    )
     plot_metric_over_time(times, cost_series, algs, "Cost over time", "Normalised cost")
     plot_metric_over_time(times, res_error_series, algs, "Resource error over time", "Normalised error")
     plot_metric_over_time(times, res_cost_series, algs, "Resource cost over time", "Normalised cost")
