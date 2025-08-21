@@ -103,8 +103,8 @@ def main() -> None:
         gwo=GWOConfig(wolf_size=10, max_iters=5, archive_size=10),
     )
 
-    outputs = run_experiment(cfg)
-    series = outputs["series"]
+    results = run_experiment(cfg)
+    series = results["series"]
     times = list(range(cfg.num_times))
 
     # Choose the algorithms to visualise
@@ -115,6 +115,30 @@ def main() -> None:
     # Plot error and cost trajectories
     plot_metric_over_time(times, error_series, algs, "Topology error over time", "Normalised error")
     plot_metric_over_time(times, cost_series, algs, "Cost over time", "Normalised cost")
+
+    # Plot actual vs expected SCS for topology and resilience errors
+    scs_tp = results["scs"]["tp"]
+    scs_E_tp = results["scs"]["E_tp"]
+    scs_res = results["scs"]["res"]
+    scs_E_res = results["scs"]["E_res"]
+
+    plot_metric_over_time(
+        times,
+        [scs_tp, scs_E_tp],
+        ["Actual SCS", "Expected SCS"],
+        "Topology continuity over time",
+        "Continuity score",
+        caption="Overlay of actual vs expected service continuity for topology errors",
+    )
+
+    plot_metric_over_time(
+        times,
+        [scs_res, scs_E_res],
+        ["Actual SCS", "Expected SCS"],
+        "Resilience continuity over time",
+        "Continuity score",
+        caption="Overlay of actual vs expected service continuity for resilience errors",
+    )
 
     # Show error–cost tradeoffs for the final time step
     final_errors = [errs[-1] for errs in error_series]
