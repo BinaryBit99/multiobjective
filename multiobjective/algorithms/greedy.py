@@ -5,7 +5,7 @@ from ..config import Config, coverage_radius
 from ..rng import RNGPool
 from ..simulation import euclidean_distance
 from ..qos import reg_err
-from ..streaks import StreakTracker, sid_to_pid_cid
+from ..streaks import StreakTracker
 from ..indicators import MetricsRecorder
 from ..defaults import OU_PARAMS_DEFAULT
 # and, if you need the helper:
@@ -55,11 +55,7 @@ def greedy_run(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
             best_i = idxs[int(np.argmin(scores))]
             p = prods[best_i]
             # streak continuity bookkeeping
-            streaks.update(
-                t,
-                sid_to_pid_cid(c.service_id, cfg.num_providers),
-                sid_to_pid_cid(p.service_id, cfg.num_providers),
-            )
+            streaks.update(t, c.service_id, p.service_id)
             e = blended_error(
                 err_type, p, c, t, cfg, norm_fn, scs_rng,
                 ou_params=OU_PARAMS_DEFAULT,

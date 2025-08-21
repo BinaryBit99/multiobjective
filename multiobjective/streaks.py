@@ -1,6 +1,15 @@
 from typing import Dict, List, Tuple
 
 def sid_to_pid_cid(sid: str, num_providers: int) -> str:
+    """Normalize service IDs to provider/consumer form.
+
+    If the ID already begins with ``"p"`` or ``"c"`` it is returned as-is.
+    Otherwise, it is assumed to be of the form ``"S<number>"`` and is mapped
+    to ``"p<number>"`` if the index refers to a provider or ``"c<number>``
+    for consumers.
+    """
+    if sid.startswith("p") or sid.startswith("c"):
+        return sid
     k = int(sid[1:])
     return f"p{k}" if k <= num_providers else f"c{k - num_providers}"
 

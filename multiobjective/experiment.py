@@ -3,14 +3,14 @@ from .config import Config, coverage_radius
 from .rng import RNGPool
 from .data import RecordBuilder
 from .indicators import MetricsRecorder
-from .streaks import StreakTracker, sid_to_pid_cid
+from .streaks import StreakTracker
 from .metrics import SCSConfig, scs, expected_scs_next
 from .qos import reg_err
 from .types import ProviderRecord, ConsumerRecord
 
 def run_experiment(cfg: Config) -> dict:
     rng_pool = RNGPool(cfg.master_seed, cfg.num_times)
-    records, cost_per_dict, T, providers, consumers = RecordBuilder(cfg, rng_pool)
+    records, cost_per_dict, T, _, _ = RecordBuilder(cfg, rng_pool)
     num_providers, num_consumers = cfg.num_providers, cfg.num_consumers
 
     # normalization bounds (per-time) for errors + cost
@@ -40,7 +40,7 @@ def run_experiment(cfg: Config) -> dict:
         raise ValueError(kind)
 
     # trackers & metrics
-    consumer_ids = [sid_to_pid_cid(sid, num_providers) for sid in consumers]
+    consumer_ids = [c.service_id for c in records[0][1]]
     streaks = StreakTracker(consumer_ids, cfg.num_times)
     metrics = MetricsRecorder(cfg.num_times)
 
