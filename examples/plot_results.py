@@ -22,7 +22,11 @@ sys.path.append(str(_parent))
 import numpy as np
 from multiobjective.config import Config, NSGAConfig, PSOConfig, GWOConfig, coverage_radius
 from multiobjective.experiment import run_experiment
-from multiobjective.plotting import plot_metric_over_time, plot_tradeoff
+from multiobjective.plotting import (
+    plot_metric_over_time,
+    plot_tradeoff,
+    plot_indicators_over_time,
+)
 from multiobjective.simulation import euclidean_distance
 from multiobjective.metrics.scs import blended_error
 from multiobjective.defaults import OU_PARAMS_DEFAULT
@@ -113,13 +117,20 @@ def main() -> None:
     cost_series = [series[a]["costs"]["tp"] for a in algs]
 
     # Plot error and cost trajectories
-    plot_metric_over_time(times, error_series, algs, "Topology error over time", "Normalised error")
-    plot_metric_over_time(times, cost_series, algs, "Cost over time", "Normalised cost")
+    plot_metric_over_time(
+        times, error_series, algs, "Topology error over time", "Normalised error"
+    )
+    plot_metric_over_time(
+        times, cost_series, algs, "Cost over time", "Normalised cost"
+    )
 
     # Show error–cost tradeoffs for the final time step
     final_errors = [errs[-1] for errs in error_series]
     final_costs = [cs[-1] for cs in cost_series]
     plot_tradeoff(final_errors, final_costs, algs, "Error–Cost tradeoff at final step")
+
+    # Visualise quality indicators across time
+    plot_indicators_over_time(times, outputs["indicators"], algs, aggregate=True)
 
 
 if __name__ == "__main__":
