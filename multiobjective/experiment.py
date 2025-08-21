@@ -111,8 +111,8 @@ def run_experiment(cfg: Config) -> dict:
         scs_series["E_tp"].append(mean_next_tp)
         scs_series["E_res"].append(mean_next_res)
 
-        # update continuity state
-        prev_assign = {cons[i].service_id: prods[assign[i]].service_id for i in range(len(cons))}
+        # update continuity state with a copy of provider indices
+        prev_assign = assign[:]
 
     return {
         "series": outputs,
