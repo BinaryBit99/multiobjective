@@ -111,15 +111,23 @@ def main() -> None:
     algs = ["random", "min_cost"]
     error_series = [series[a]["errors"]["tp"] for a in algs]
     cost_series = [series[a]["costs"]["tp"] for a in algs]
+    res_error_series = [series[a]["errors"]["res"] for a in algs]
+    res_cost_series = [series[a]["costs"]["res"] for a in algs]
 
     # Plot error and cost trajectories
     plot_metric_over_time(times, error_series, algs, "Topology error over time", "Normalised error")
     plot_metric_over_time(times, cost_series, algs, "Cost over time", "Normalised cost")
+    plot_metric_over_time(times, res_error_series, algs, "Resource error over time", "Normalised error")
+    plot_metric_over_time(times, res_cost_series, algs, "Resource cost over time", "Normalised cost")
 
     # Show error–cost tradeoffs for the final time step
     final_errors = [errs[-1] for errs in error_series]
     final_costs = [cs[-1] for cs in cost_series]
     plot_tradeoff(final_errors, final_costs, algs, "Error–Cost tradeoff at final step")
+
+    res_final_errors = [errs[-1] for errs in res_error_series]
+    res_final_costs = [cs[-1] for cs in res_cost_series]
+    plot_tradeoff(res_final_errors, res_final_costs, algs, "Resource error–cost tradeoff at final step")
 
 
 if __name__ == "__main__":
