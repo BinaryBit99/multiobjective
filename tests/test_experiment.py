@@ -2,6 +2,8 @@ import multiobjective.experiment as experiment
 from multiobjective.config import Config, NSGAConfig, PSOConfig, GWOConfig
 from multiobjective.algorithms.greedy import greedy_run
 import multiobjective.algorithms as algorithms
+import pytest
+from multiobjective.errors import CoverageError
 
 
 def test_run_experiment_minimal(monkeypatch):
@@ -29,3 +31,14 @@ def test_run_experiment_minimal(monkeypatch):
 
     assert {"series", "indicators", "scs", "meta"} <= set(result.keys())
     assert "greedy" in result["series"]
+
+
+def test_run_experiment_no_feasible_pairs():
+    cfg = Config(
+        num_times=1,
+        num_services=4,
+        coverage_fraction=0.0,
+    )
+
+    with pytest.raises(CoverageError):
+        experiment.run_experiment(cfg)

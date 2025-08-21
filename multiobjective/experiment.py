@@ -7,6 +7,7 @@ from .streaks import StreakTracker
 from .metrics import SCSConfig, scs, expected_scs_next
 from .qos import reg_err
 from .types import ProviderRecord, ConsumerRecord
+from .errors import CoverageError
 
 def run_experiment(cfg: Config) -> dict:
     rng_pool = RNGPool(cfg.master_seed, cfg.num_times)
@@ -19,11 +20,17 @@ def run_experiment(cfg: Config) -> dict:
     for t in range(cfg.num_times):
         prods, cons = records[t]
         tp_errs, res_errs = [], []
-        for p in prods:
-            for c in cons:
+        for c in cons:
+            feasible = False
+            for p in prods:
                 if _within(p, c, rad):
+                    feasible = True
                     tp_errs.append(reg_err(p, c, "tp"))
                     res_errs.append(reg_err(p, c, "res"))
+            if not feasible:
+                raise CoverageError(consumer_id=c.service_id, t=t, radius=rad)
+        if not tp_errs or not res_errs:
+            raise CoverageError(consumer_id="*", t=t, radius=rad)
         per_time_bounds[f"{t}"] = (
             max(tp_errs), max(res_errs), min(tp_errs), min(res_errs),
             min(cost_per_dict[f"{t}"]), max(cost_per_dict[f"{t}"])
