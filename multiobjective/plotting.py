@@ -1,5 +1,28 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.stats import kendalltau
+
+__all__ = [
+    "create_2x2_figure",
+    "indicator_series",
+    "plot_metric_over_time",
+    "plot_scs_over_time",
+    "plot_churn_over_time",
+    "plot_metric_with_std",
+    "plot_quality_vs_time",
+    "plot_tradeoff",
+    "indicator_metric_series",
+    "plot_indicator_metric",
+    "plot_pareto_front_shift",
+    "plot_scs_vs_cost_at_error",
+    "plot_scs_vs_weight_at_error",
+    "plot_assignment_heatmap",
+    "plot_dbn_checks",
+    "collect_displacements",
+    "lag1_autocorrelation",
+    "plot_mobility_checks",
+    "plot_sensitivity_grid",
+]
 
 
 
@@ -351,6 +374,104 @@ def plot_scs_vs_weight_at_error(scs_w, weights, labels, title):
     plt.title(title)
     plt.grid(True)
     plt.legend()
+
+
+def plot_sensitivity_grid(results, weights, budgets, alg_label):
+    """Visualise sensitivity to SCS weight and Monte Carlo budget.
+
+    This helper arranges four panels in a 2×2 grid:
+
+    A. Pareto front shift between different ``w`` values.
+    B. Service-continuity score at matched error quantiles versus ``w``.
+    C. Ranking stability across ``K`` budgets measured by Kendall's ``τ``.
+    D. Mean runtime versus ``K``.
+
+    Parameters
+    ----------
+    results : dict
+        Nested mapping ``results[w][K]`` as returned by
+        :func:`multiobjective.experiment.run_experiment`.
+    weights : sequence of float
+        SCS look-ahead weight values.
+    budgets : sequence of int
+        Monte Carlo budgets ``K``.
+    alg_label : str
+        Label for the algorithm whose Pareto fronts are compared.
+    """
+
+    fig, axes = create_2x2_figure(figsize=(12, 10))
+    (axA, axB), (axC, axD) = axes
+
+    # Panel A – Pareto front shift for different w
+    plt.sca(axA)
+    alg = next(iter(results[weights[0]][budgets[-1]]["fronts"]))
+    series = results[weights[0]][budgets[-1]]["series"][alg]["errors"]["tp"]
+    last_t = str(len(series) - 1)
+    front_w0 = results[weights[0]][budgets[-1]]["fronts"][alg]["tp"][last_t]
+    for w in weights[1:]:
+        front_w = results[w][budgets[-1]]["fronts"][alg]["tp"][last_t]
+        plot_pareto_front_shift(front_w0, front_w, alg_label)
+    axA.set_title("Front shift vs w")
+
+    # Panel B – SCS at matched error quantiles vs w
+    plt.sca(axB)
+    q_vals = [0.25, 0.5, 0.75]
+    scs_w = {w: [] for w in weights}
+    for w in weights:
+        series = results[w][budgets[-1]]["series"][alg]
+        errs = np.array(series["errors"]["tp"])
+        scs_vals = np.array(series["scs"]["tp"]["actual"])
+        for q in q_vals:
+            q_err = np.quantile(errs, q)
+            idx = int(np.argmin(np.abs(errs - q_err)))
+            scs_w[w].append(scs_vals[idx])
+    plot_scs_vs_weight_at_error(
+        scs_w,
+        weights,
+        [f"q={q}" for q in q_vals],
+        "SCS vs w at error quantiles",
+    )
+
+    # Panel C – ranking stability vs K
+    plt.sca(axC)
+    hv_per_K = {}
+    w0 = weights[0]
+    for K in budgets:
+        ind = results[w0][K]["indicators"]
+        hv_per_K[K] = {a: ind[a]["tp"]["HV"][-1] for a in ind}
+    base_rank = sorted(
+        hv_per_K[budgets[-1]], key=hv_per_K[budgets[-1]].get, reverse=True
+    )
+    base_ranks = {a: i for i, a in enumerate(base_rank)}
+    taus = []
+    for K in budgets:
+        rank = sorted(hv_per_K[K], key=hv_per_K[K].get, reverse=True)
+        ranks = {a: i for i, a in enumerate(rank)}
+        a1 = [base_ranks[a] for a in base_rank]
+        a2 = [ranks[a] for a in base_rank]
+        tau, _ = kendalltau(a1, a2)
+        taus.append(tau)
+    plt.plot(budgets, taus, marker="o")
+    plt.xlabel("K")
+    plt.ylabel("Kendall tau")
+    plt.title("Ranking stability vs K")
+    plt.grid(True)
+
+    # Panel D – runtime vs K
+    plt.sca(axD)
+    runtimes = []
+    for K in budgets:
+        rt = [results[w][K]["meta"]["runtime_s"] for w in weights]
+        runtimes.append(sum(rt) / len(rt))
+    plt.plot(budgets, runtimes, marker="o")
+    plt.xlabel("K")
+    plt.ylabel("Runtime (s)")
+    plt.title("Runtime vs K")
+    plt.grid(True)
+
+    fig.tight_layout()
+    plt.show()
+    return fig, axes
 
 
 def plot_assignment_heatmap(assign_matrix, title):
