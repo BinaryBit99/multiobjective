@@ -12,10 +12,17 @@ def test_indicators_on_simple_front():
     igd_val = igd(front, reference)
     eps_val = epsilon_additive(front, reference)
 
-    expected_hv = (0.4 - 0.2) * (1.0 - 0.1)
+    expected_hv = (0.4 - 0.0) * (1.0 - 0.1)
     expected_igd = (math.sqrt(0.2 ** 2 + 0.3 ** 2) + 0.1) / 2
     expected_eps = 0.3
 
     assert hv == pytest.approx(expected_hv)
     assert igd_val == pytest.approx(expected_igd)
     assert eps_val == pytest.approx(expected_eps)
+
+
+def test_hypervolume_accounts_for_remaining_area():
+    front = [(0.4, 0.2)]
+    hv = hypervolume_2d(front, ref=(1.0, 1.0))
+    expected_hv = 0.4 * (1.0 - 0.2)
+    assert hv == pytest.approx(expected_hv)
