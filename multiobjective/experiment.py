@@ -54,6 +54,11 @@ def run_experiment(cfg: Config) -> dict:
     # run all algos
     from .algorithms import ALG_REGISTRY
     outputs = {}
+
+    scs_cfg = (
+        SCSConfig(**vars(cfg.scs)) if getattr(cfg, "scs", None) else SCSConfig()
+    )
+
     for alg_name, fn in ALG_REGISTRY.items():
         series = {}
         for te in ["tp", "res"]:
@@ -81,55 +86,45 @@ def run_experiment(cfg: Config) -> dict:
             series.setdefault("errors", {})[te] = errs
             series.setdefault("costs", {})[te] = costs
             series.setdefault("stds", {})[te] = stds
+
+            # SCS metrics per algorithm/error-type
+            prev_assign = None
+            actual, expected = [], []
+            for t in range(cfg.num_times):
+                prods, cons = records[t]
+                assign = []
+                for ci, c in enumerate(cons):
+                    scores = []
+                    for pi, p in enumerate(prods):
+                        e = norm_err(te, reg_err(p, c, te), t)
+                        scores.append((e + norm_err("__cost__", p.cost, t), pi))
+                    assign.append(min(scores)[1])
+                scs_rng = rng_pool.for_("scs", t)
+                score, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg)
+                mean_next, _ = expected_scs_next(
+                    assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng, T
+                )
+                actual.append(score)
+                expected.append(mean_next)
+                prev_assign = assign[:]
+            series.setdefault("scs", {})[te] = {
+                "actual": actual,
+                "expected": expected,
+            }
+
         outputs[alg_name] = series
 
     # compute indicators from logged fronts
     indicators = metrics.compute_all()
 
-    # example SCS usage on greedy assignments each t (simulate "assignments" as argmin cost choice)
-    scs_cfg = (
-        SCSConfig(**vars(cfg.scs)) if getattr(cfg, "scs", None) else SCSConfig()
-    )
-    scs_series = {"tp": [], "res": [], "E_tp": [], "E_res": []}
-    prev_assign = None
-    for t in range(cfg.num_times):
-        prods, cons = records[t]
-        # quick assignment snapshot: choose min normalized error+cost (greedy surrogate)
-        assign = []
-        for ci, c in enumerate(cons):
-            scores = []
-            for pi, p in enumerate(prods):
-                e = 0.5 * norm_err("tp", reg_err(p, c, "tp"), t) + 0.5 * norm_err("res", reg_err(p, c, "res"), t)
-                scores.append((e + norm_err("__cost__", p.cost, t), pi))
-            assign.append(min(scores)[1])
-
-        scs_rng = rng_pool.for_("scs", t)
-        score_tp, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg)
-        score_res, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg)
-        mean_next_tp, _ = expected_scs_next(
-            assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng, T
-        )
-        mean_next_res, _ = expected_scs_next(
-            assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng, T
-        )
-
-        scs_series["tp"].append(score_tp)
-        scs_series["res"].append(score_res)
-        scs_series["E_tp"].append(mean_next_tp)
-        scs_series["E_res"].append(mean_next_res)
-
-        # update continuity state with a copy of provider indices
-        prev_assign = assign[:]
-
     return {
         "series": outputs,
         "indicators": indicators,
-        "scs": scs_series,
         "meta": {
             "num_providers": num_providers,
             "num_consumers": num_consumers,
             "transition_matrix": T,
-        }
+        },
     }
 
 def _within(p: ProviderRecord, c: ConsumerRecord, radius: float) -> bool:  # local

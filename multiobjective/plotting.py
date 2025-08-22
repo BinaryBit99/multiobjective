@@ -45,6 +45,29 @@ def plot_metric_over_time(times, series, labels, title, ylabel, caption: str | N
         plt.figtext(0.5, -0.05, caption, ha="center", va="center", fontsize=9)
     plt.show()
 
+
+def plot_scs_over_time(times, series, labels, title, caption: str | None = None):
+    """Plot service-continuity scores over time.
+
+    This is a thin wrapper around :func:`plot_metric_over_time` with the
+    y-axis label preset to ``"SCS"``.
+
+    Parameters
+    ----------
+    times : sequence
+        X-axis values (time steps).
+    series : sequence of sequences
+        SCS values for each labelled series.
+    labels : sequence of str
+        Labels corresponding to ``series``.
+    title : str
+        Title for the plot.
+    caption : str, optional
+        Caption placed below the plot.
+    """
+
+    plot_metric_over_time(times, series, labels, title, ylabel="SCS", caption=caption)
+
 def plot_metric_with_std(times, series, stds, labels, title, ylabel):
     """Plot metric trajectories with mean and standard deviation.
 
