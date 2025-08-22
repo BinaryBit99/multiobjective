@@ -6,9 +6,11 @@ resulting metrics using the helper functions in :mod:`multiobjective.plotting`.
 """
 import matplotlib
 matplotlib.use("Agg")  # use a non-interactive backend for example usage
+import matplotlib.pyplot as plt
 
 from pathlib import Path
 import sys
+from dataclasses import replace
 
 # Ensure the project root's parent is on the Python path and avoid name clashes
 _script_dir = Path(__file__).resolve().parent
@@ -28,6 +30,7 @@ from multiobjective.plotting import (
     plot_tradeoff,
     plot_indicator_metric,
     plot_scs_over_time,
+    plot_scs_vs_cost_at_error,
 )
 from multiobjective.simulation import euclidean_distance
 from multiobjective.metrics.scs import blended_error
@@ -109,8 +112,15 @@ def main() -> None:
         gwo=GWOConfig(wolf_size=10, max_iters=5, archive_size=10),
     )
 
-    results = run_experiment(cfg)
-    series = results["series"]
+    results_w0 = run_experiment(cfg)
+    series_w0 = results_w0["series"]
+
+    cfg_w04 = replace(cfg, scs_lookahead_weight=0.4)
+    results_w04 = run_experiment(cfg_w04)
+    series_w04 = results_w04["series"]
+
+    results = results_w0
+    series = series_w0
     times = list(range(cfg.num_times))
 
     # Choose the algorithms to visualise
@@ -172,6 +182,39 @@ def main() -> None:
     res_final_errors = [errs[-1] for errs in res_error_series]
     res_final_costs = [cs[-1] for cs in res_cost_series]
     plot_tradeoff(res_final_errors, res_final_costs, algs, "Resource error–cost tradeoff at final step")
+
+    # Compare cost and SCS at selected error quantiles for different weights
+    quantiles = [0.25, 0.50, 0.75]
+    fig, axes = plt.subplots(len(quantiles), 1, figsize=(6, 4 * len(quantiles)))
+    for ax, q in zip(axes, quantiles):
+        costs_w = {0: [], 0.4: []}
+        scs_w = {0: [], 0.4: []}
+        for alg in algs:
+            errs = np.array(series_w0[alg]["errors"]["tp"])
+            cs = np.array(series_w0[alg]["costs"]["tp"])
+            scs_vals = np.array(series_w0[alg]["scs"]["tp"]["actual"])
+            q_err = np.quantile(errs, q)
+            idx = int(np.argmin(np.abs(errs - q_err)))
+            costs_w[0].append(cs[idx])
+            scs_w[0].append(scs_vals[idx])
+
+            errs = np.array(series_w04[alg]["errors"]["tp"])
+            cs = np.array(series_w04[alg]["costs"]["tp"])
+            scs_vals = np.array(series_w04[alg]["scs"]["tp"]["actual"])
+            q_err = np.quantile(errs, q)
+            idx = int(np.argmin(np.abs(errs - q_err)))
+            costs_w[0.4].append(cs[idx])
+            scs_w[0.4].append(scs_vals[idx])
+
+        plt.sca(ax)
+        plot_scs_vs_cost_at_error(
+            costs_w,
+            scs_w,
+            algs,
+            title=f"Error quantile {q:.2f}",
+        )
+
+    plt.tight_layout()
 
 
 if __name__ == "__main__":
