@@ -90,6 +90,7 @@ def run_experiment(cfg: Config) -> dict:
             # SCS metrics per algorithm/error-type
             prev_assign = None
             actual, expected = [], []
+            assigns: list[list[int]] = []
             for t in range(cfg.num_times):
                 prods, cons = records[t]
                 assign = []
@@ -106,11 +107,13 @@ def run_experiment(cfg: Config) -> dict:
                 )
                 actual.append(score)
                 expected.append(mean_next)
+                assigns.append(assign)
                 prev_assign = assign[:]
             series.setdefault("scs", {})[te] = {
                 "actual": actual,
                 "expected": expected,
             }
+            series.setdefault("assignments", {})[te] = assigns
 
         outputs[alg_name] = series
 
