@@ -68,6 +68,46 @@ def plot_scs_over_time(times, series, labels, title, caption: str | None = None)
 
     plot_metric_over_time(times, series, labels, title, ylabel="SCS", caption=caption)
 
+
+def plot_churn_over_time(times, churn_series, scs_series, labels, title):
+    """Plot churn fractions over time, optionally overlaying SCS values.
+
+    Parameters
+    ----------
+    times : sequence
+        X-axis values corresponding to ``churn_series``.
+    churn_series : sequence of sequences
+        Churn fractions for each labelled series.
+    scs_series : sequence of sequences or ``None``
+        Mean service-continuity scores aligned with ``times``.  If provided,
+        they are plotted on a secondary y-axis.
+    labels : sequence of str
+        Labels for each series.
+    title : str
+        Title for the plot.
+    """
+
+    fig, ax1 = plt.subplots(figsize=(10, 4))
+    for ys, lab in zip(churn_series, labels):
+        ax1.plot(times, ys, marker="o", label=f"{lab} churn")
+    ax1.set_xlabel("t")
+    ax1.set_ylabel("Churn")
+    ax1.grid(True)
+
+    if scs_series:
+        ax2 = ax1.twinx()
+        for ys, lab in zip(scs_series, labels):
+            ax2.plot(times, ys, linestyle="--", marker="x", label=f"{lab} SCS")
+        ax2.set_ylabel("SCS")
+        lines1, labels1 = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2)
+    else:
+        ax1.legend()
+
+    ax1.set_title(title)
+    plt.show()
+
 def plot_metric_with_std(times, series, stds, labels, title, ylabel):
     """Plot metric trajectories with mean and standard deviation.
 

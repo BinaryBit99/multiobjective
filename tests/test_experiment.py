@@ -34,6 +34,9 @@ def test_run_experiment_minimal(monkeypatch):
     scs_section = result["series"]["greedy"].get("scs")
     assert scs_section is not None and set(scs_section.keys()) == {"tp", "res"}
     assert len(scs_section["tp"]["actual"]) == cfg.num_times
+    assignments = result["series"]["greedy"]["assignments"]["tp"]
+    assert len(assignments) == cfg.num_times
+    assert len(assignments[0]) == result["meta"]["num_consumers"]
 
 
 def test_run_experiment_no_feasible_pairs():
