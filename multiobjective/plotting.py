@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+
 def create_2x2_figure(figsize=(10, 8)):
     """Create a figure with a 2×2 grid of subplots.
 
@@ -455,3 +456,125 @@ def plot_dbn_checks(results, p_qos, qos_labels, bins: int = 10):
     fig.tight_layout()
     plt.show()
     return fig, axes
+
+
+def collect_displacements(records: dict) -> dict:
+    """Collect displacement magnitudes and positions from simulation records.
+
+    Parameters
+    ----------
+    records : dict
+        Mapping ``t`` to ``(providers, consumers)`` as produced by
+        :func:`multiobjective.data.RecordBuilder`.
+
+    Returns
+    -------
+    dict
+        Dictionary containing flattened displacement arrays and position
+        histories for providers and consumers.
+    """
+
+    times = sorted(records)
+    if not times:
+        return {
+            "providers": np.array([]),
+            "consumers": np.array([]),
+            "providers_pos": np.empty((0, 0, 2)),
+            "consumers_pos": np.empty((0, 0, 2)),
+        }
+
+    prods0, cons0 = records[times[0]]
+    num_p, num_c = len(prods0), len(cons0)
+    num_t = len(times)
+
+    p_pos = np.zeros((num_p, num_t, 2), dtype=float)
+    c_pos = np.zeros((num_c, num_t, 2), dtype=float)
+
+    for idx, t in enumerate(times):
+        prods, cons = records[t]
+        for i, rec in enumerate(prods):
+            p_pos[i, idx] = np.asarray(rec.coords, dtype=float)
+        for j, rec in enumerate(cons):
+            c_pos[j, idx] = np.asarray(rec.coords, dtype=float)
+
+    p_disp = np.linalg.norm(np.diff(p_pos, axis=1), axis=2)
+    c_disp = np.linalg.norm(np.diff(c_pos, axis=1), axis=2)
+
+    return {
+        "providers": p_disp.flatten(),
+        "consumers": c_disp.flatten(),
+        "providers_pos": p_pos,
+        "consumers_pos": c_pos,
+    }
+
+
+def lag1_autocorrelation(coords: np.ndarray) -> float:
+    """Return the average lag-1 autocorrelation across coordinate series."""
+
+    if coords.shape[1] < 2:
+        return float("nan")
+
+    acs = []
+    for series in coords:  # series shape: (T, 2)
+        for d in range(series.shape[1]):
+            x0 = series[:-1, d]
+            x1 = series[1:, d]
+            if np.std(x0) == 0 or np.std(x1) == 0:
+                continue
+            acs.append(float(np.corrcoef(x0, x1)[0, 1]))
+    return float(np.nanmean(acs)) if acs else float("nan")
+
+
+def plot_mobility_checks(displacements: dict, theta: float, title: str):
+    """Plot displacement histogram with OU Gaussian overlay and autocorrelation.
+
+    Parameters
+    ----------
+    displacements : dict
+        Output from :func:`collect_displacements`.
+    theta : float
+        OU mean-reversion parameter ``θ``.
+    title : str
+        Title for the plot.
+
+    Returns
+    -------
+    fig, ax
+        Figure and main axis containing the histogram.
+    """
+
+    from .defaults import OU_PARAMS_DEFAULT
+
+    ds_all = np.concatenate([displacements["providers"], displacements["consumers"]])
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    if ds_all.size:
+        ax.hist(ds_all, bins=30, density=True, alpha=0.6, label="empirical")
+        ou = OU_PARAMS_DEFAULT
+        var = 2.0 * (ou.sigma ** 2) * ou.delta_t
+        xs = np.linspace(0.0, max(ds_all.max(), 1.0), 200)
+        gaussian = (1.0 / np.sqrt(2 * np.pi * var)) * np.exp(-0.5 * xs * xs / var)
+        ax.plot(xs, gaussian, "r--", label="OU Gaussian")
+    ax.set_xlabel(r"$\|x_{t+1}-x_t\|")
+    ax.set_ylabel("density")
+    ax.set_title(title)
+    ax.legend()
+
+    # Autocorrelation inset
+    positions = np.concatenate(
+        [displacements["providers_pos"], displacements["consumers_pos"]], axis=0
+    )
+    emp_ac = lag1_autocorrelation(positions)
+    ou = OU_PARAMS_DEFAULT
+    theo_ac = float(np.exp(-theta * ou.delta_t))
+
+    inset = ax.inset_axes([0.6, 0.6, 0.35, 0.35])
+    inset.bar([0, 1], [emp_ac, theo_ac], color=["C0", "C1"])
+    inset.set_xticks([0, 1])
+    inset.set_xticklabels(["emp", "theory"])
+    inset.set_ylim(0, 1)
+    inset.set_title("lag-1 AC")
+
+    fig.tight_layout()
+    plt.show()
+    return fig, ax
