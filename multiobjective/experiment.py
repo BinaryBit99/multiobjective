@@ -117,9 +117,17 @@ def run_experiment(cfg: Config) -> dict:
     # compute indicators from logged fronts
     indicators = metrics.compute_all()
 
+    # Convert logged fronts to plain dicts for external use
+    fronts = {}
+    for alg, err_dict in metrics.front_log.items():
+        fronts[alg] = {}
+        for err_type, time_dict in err_dict.items():
+            fronts[alg][err_type] = {str(t): front for t, front in time_dict.items()}
+
     return {
         "series": outputs,
         "indicators": indicators,
+        "fronts": fronts,
         "meta": {
             "num_providers": num_providers,
             "num_consumers": num_consumers,
