@@ -350,3 +350,26 @@ def plot_scs_vs_weight_at_error(scs_w, weights, labels, title):
     plt.title(title)
     plt.grid(True)
     plt.legend()
+
+
+def plot_assignment_heatmap(assign_matrix, title):
+    """Visualise provider assignments over time as a heatmap.
+
+    Parameters
+    ----------
+    assign_matrix : sequence of sequences of int
+        Assignment matrix where ``assign_matrix[t][i]`` is the provider index
+        serving consumer ``i`` at time step ``t``.
+    title : str
+        Title for the heatmap.
+    """
+
+    arr = np.asarray(assign_matrix).T
+    cmap = plt.get_cmap("tab20", int(arr.max()) + 1)
+    ax = plt.gca()
+    im = ax.imshow(arr, cmap=cmap, aspect="auto", interpolation="nearest")
+    ax.set_xlabel("t")
+    ax.set_ylabel("consumer")
+    ax.set_title(title)
+    cbar = plt.colorbar(im, ax=ax, ticks=range(int(arr.max()) + 1))
+    cbar.set_label("provider")
