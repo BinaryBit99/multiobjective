@@ -2,6 +2,36 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def indicator_series(indicators: dict, name: str, err_type: str = "tp"):
+    """Extract per-algorithm indicator values over time.
+
+    Parameters
+    ----------
+    indicators : mapping
+        The ``"indicators"`` portion of :func:`multiobjective.experiment.run_experiment`
+        output. It maps algorithm names to indicator time series.
+    name : str
+        Indicator name such as ``"HV"`` (hypervolume), ``"IGD"`` or ``"EPS"``.
+    err_type : str, optional
+        Error category to select (``"tp"`` for topology or ``"res"`` for
+        resilience errors).
+
+    Returns
+    -------
+    times : range
+        Time steps corresponding to the indicator values.
+    series : list[list[float]]
+        A list of indicator series, one per algorithm.
+    labels : list[str]
+        Algorithm labels matching ``series`` order.
+    """
+
+    labels = list(indicators)
+    series = [indicators[a][err_type][name] for a in labels]
+    times = range(len(series[0]) if series else 0)
+    return times, series, labels
+
+
 def plot_metric_over_time(times, series, labels, title, ylabel, caption: str | None = None):
     plt.figure(figsize=(10,4))
     for ys, lab in zip(series, labels):
