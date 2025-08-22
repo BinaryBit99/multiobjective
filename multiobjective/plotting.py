@@ -49,3 +49,58 @@ def plot_tradeoff(errors, costs, labels, title):
     for i, (e,c,l) in enumerate(zip(errors, costs, labels)):
         plt.scatter(e, c, marker=mk[i%len(mk)], label=l)
     plt.xlabel("Error"); plt.ylabel("Cost"); plt.title(title); plt.grid(True); plt.legend(); plt.show()
+
+
+def indicator_metric_series(indicators: dict, metric: str, err_type: str):
+    """Extract per-algorithm series for a given indicator metric.
+
+    Parameters
+    ----------
+    indicators : dict
+        The ``indicators`` section returned by :func:`run_experiment`.
+    metric : str
+        Indicator metric name (e.g. ``"HV"`` or ``"IGD"``).
+    err_type : str
+        Error type to extract (``"tp"`` or ``"res"``).
+
+    Returns
+    -------
+    times : list[int]
+        List of time indices.
+    series : list[list[float]]
+        Metric values for each algorithm.
+    labels : list[str]
+        Algorithm names corresponding to ``series`` order.
+    """
+
+    labels = sorted(indicators.keys())
+    series = [indicators[a][err_type][metric] for a in labels]
+    times = list(range(len(series[0]) if series else 0))
+    return times, series, labels
+
+
+def plot_indicator_metric(indicators: dict, metric: str, err_type: str,
+                          title: str, ylabel: str, caption: str | None = None):
+    """Plot an indicator metric over time for each algorithm.
+
+    This is a convenience wrapper around :func:`plot_metric_over_time` that
+    extracts the per-algorithm series for ``metric`` and ``err_type``.
+
+    Parameters
+    ----------
+    indicators : dict
+        The ``indicators`` section returned by :func:`run_experiment`.
+    metric : str
+        Indicator metric name (e.g. ``"HV"``).
+    err_type : str
+        Error type to extract (``"tp"`` or ``"res"``).
+    title : str
+        Title for the plot.
+    ylabel : str
+        Label for the y-axis.
+    caption : str, optional
+        Additional caption displayed below the plot.
+    """
+
+    times, series, labels = indicator_metric_series(indicators, metric, err_type)
+    plot_metric_over_time(times, series, labels, title, ylabel, caption)

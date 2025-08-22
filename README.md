@@ -39,7 +39,7 @@ Then load the JSON and generate plots:
 ```bash
 python - <<'PY'
 import json
-from multiobjective.plotting import plot_metric_over_time, plot_tradeoff
+from multiobjective.plotting import plot_metric_over_time, plot_tradeoff, plot_indicator_metric
 
 # Load CLI output
 with open("results.json") as f:
@@ -56,6 +56,15 @@ plot_metric_over_time(times,
 plot_metric_over_time(times,
     [series[a]["costs"]["tp"] for a in algs],
     algs, "Cost over time", "Normalised cost")
+
+# Plot a quality indicator (e.g. hypervolume)
+plot_indicator_metric(
+    results["indicators"],
+    "HV",
+    "tp",
+    "Topology hypervolume over time",
+    "Hypervolume",
+)
 
 # Plot final trade-off
 plot_tradeoff(
