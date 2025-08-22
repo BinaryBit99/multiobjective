@@ -193,3 +193,42 @@ def plot_pareto_front_shift(front_w0, front_w1, alg_label):
     plt.title(alg_label)
     plt.grid(True)
     plt.legend()
+
+
+def plot_scs_vs_cost_at_error(costs_w, scs_w, labels, title):
+    """Plot SCS against cost for two SCS weights at a fixed error level.
+
+    Parameters
+    ----------
+    costs_w : mapping
+        Dictionary mapping SCS weights to cost values for each algorithm.
+    scs_w : mapping
+        Dictionary mapping SCS weights to service-continuity scores for each
+        algorithm.
+    labels : sequence of str
+        Labels for the algorithms.
+    title : str
+        Title for the plot.
+    """
+
+    weights = sorted(costs_w)
+    markers = {weights[0]: "o", weights[1]: "s"}
+    colours = [f"C{i}" for i in range(len(labels))]
+
+    for i, lab in enumerate(labels):
+        xs = [costs_w[w][i] for w in weights]
+        ys = [scs_w[w][i] for w in weights]
+        plt.plot(xs, ys, linestyle="--", color=colours[i], label=lab)
+        for w in weights:
+            plt.scatter(costs_w[w][i], scs_w[w][i],
+                        color=colours[i], marker=markers[w])
+
+    # Legend entries for weight markers
+    for w in weights:
+        plt.scatter([], [], color="k", marker=markers[w], label=f"w={w}")
+
+    plt.xlabel("Cost")
+    plt.ylabel("SCS")
+    plt.title(title)
+    plt.grid(True)
+    plt.legend()
