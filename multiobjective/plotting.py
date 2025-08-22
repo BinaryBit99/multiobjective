@@ -157,3 +157,39 @@ def plot_indicator_metric(indicators: dict, metric: str, err_type: str,
 
     times, series, labels = indicator_metric_series(indicators, metric, err_type)
     plot_metric_over_time(times, series, labels, title, ylabel, caption)
+
+
+def plot_pareto_front_shift(front_w0, front_w1, alg_label):
+    """Visualise the Pareto front change between two SCS weights.
+
+    Parameters
+    ----------
+    front_w0 : sequence of tuple
+        Final Pareto-optimal points when ``scs_lookahead_weight`` is ``0``.
+    front_w1 : sequence of tuple
+        Final Pareto-optimal points when ``scs_lookahead_weight`` is ``0.4``.
+    alg_label : str
+        Label describing the algorithm whose fronts are plotted.
+    """
+
+    from .pareto import nondominated_indices
+
+    pts = [(e, c, "w=0") for e, c in front_w0]
+    pts.extend((e, c, "w=0.4") for e, c in front_w1)
+    objs = [(e, c) for e, c, _ in pts]
+    nd = set(nondominated_indices(objs))
+
+    seen = set()
+    for i, (e, c, lab) in enumerate(pts):
+        alpha = 1.0 if i in nd else 0.2
+        color = "C0" if lab == "w=0" else "C1"
+        marker = "o" if lab == "w=0" else "s"
+        lbl = lab if lab not in seen else None
+        seen.add(lab)
+        plt.scatter(e, c, color=color, marker=marker, alpha=alpha, label=lbl)
+
+    plt.xlabel("Error")
+    plt.ylabel("Cost")
+    plt.title(alg_label)
+    plt.grid(True)
+    plt.legend()
