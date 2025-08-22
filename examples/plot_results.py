@@ -26,6 +26,7 @@ from multiobjective.plotting import (
     plot_metric_over_time,
     plot_metric_with_std,
     plot_tradeoff,
+    plot_indicator_metric,
 )
 from multiobjective.simulation import euclidean_distance
 from multiobjective.metrics.scs import blended_error
@@ -131,6 +132,15 @@ def main() -> None:
     plot_metric_over_time(times, cost_series, algs, "Cost over time", "Normalised cost")
     plot_metric_over_time(times, res_error_series, algs, "Resource error over time", "Normalised error")
     plot_metric_over_time(times, res_cost_series, algs, "Resource cost over time", "Normalised cost")
+
+    # Plot hypervolume indicator for topology error fronts
+    plot_indicator_metric(
+        results["indicators"],
+        "HV",
+        "tp",
+        "Topology hypervolume over time",
+        "Hypervolume",
+    )
 
     # Plot actual vs expected SCS for topology and resilience errors
     scs_tp = results["scs"]["tp"]
