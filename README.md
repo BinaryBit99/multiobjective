@@ -73,3 +73,31 @@ plot_tradeoff(
     algs, "Final error–cost tradeoff")
 PY
 ```
+
+### Plotting indicator metrics
+
+The experiment also logs common quality indicators such as hypervolume (HV),
+inverted generational distance (IGD) and additive epsilon (EPS) for each
+algorithm over time. The helper function `indicator_series` from
+`multiobjective.plotting` extracts these values in a convenient form for
+visualisation with `plot_metric_over_time`.
+
+```bash
+python - <<'PY'
+import json
+from multiobjective.plotting import indicator_series, plot_metric_over_time
+
+with open("results.json") as f:
+    results = json.load(f)
+
+# Collect HV values for topology error across all algorithms
+inds = results["indicators"]
+times, hv_series, algs = indicator_series(inds, "HV", err_type="tp")
+
+plot_metric_over_time(times, hv_series, algs,
+                      "Hypervolume over time", "HV")
+PY
+```
+
+The resulting plot shows how the hypervolume indicator evolves for each
+algorithm, enabling direct comparison of their performance.
