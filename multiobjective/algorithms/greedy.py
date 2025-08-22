@@ -1,5 +1,6 @@
 from typing import Tuple, List
 import numpy as np
+import time
 from ..types import ErrorType, ProviderRecord, ConsumerRecord
 from ..config import Config, coverage_radius
 from ..rng import RNGPool
@@ -16,8 +17,9 @@ def greedy_run(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
                err_type: ErrorType, metrics: MetricsRecorder,
                streaks: StreakTracker, norm_fn,
                transition_matrix: dict | None = None):
-    errors, costs, stds = [], [], []
+    errors, costs, stds, times = [], [], [], []
     radius = coverage_radius(cfg)
+    start = time.perf_counter()
     for t in range(cfg.num_times):
         scs_rng = rng_pool.for_time("scs", t)
 
@@ -68,4 +70,5 @@ def greedy_run(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
         std_err = float(np.std([m[0] for m in matched])) if len(matched)>1 else 0.0
         errors.append(avg_err); costs.append(avg_cost); stds.append(std_err)
         metrics.record("greedy", err_type, t, [(avg_err, avg_cost)])
-    return errors, costs, stds
+        times.append(time.perf_counter() - start)
+    return errors, costs, stds, times

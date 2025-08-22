@@ -38,6 +38,11 @@ def test_run_experiment_minimal(monkeypatch):
     assert len(assignments) == cfg.num_times
     assert len(assignments[0]) == result["meta"]["num_consumers"]
 
+    times_section = result["series"]["greedy"].get("times")
+    assert times_section is not None and set(times_section.keys()) == {"tp", "res"}
+    assert len(times_section["tp"]) == cfg.num_times
+    assert all(t2 >= t1 for t1, t2 in zip(times_section["tp"], times_section["tp"][1:]))
+
 
 def test_run_experiment_no_feasible_pairs():
     cfg = Config(

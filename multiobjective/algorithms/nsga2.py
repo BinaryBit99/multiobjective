@@ -1,4 +1,4 @@
-import numpy as np, math
+import numpy as np, math, time
 from typing import List, Tuple
 from .base import Individual, fast_non_dominated_sort, calculate_crowding_distance, tournament_select
 from ..config import Config
@@ -19,6 +19,8 @@ def run_nsga2(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
               transition_matrix: dict | None = None):
     pop_size = cfg.nsga.population_size
     best_fronts = []
+    times = []
+    start = time.perf_counter()
     for t in range(cfg.num_times):
         rng = rng_pool.for_("nsga", t)
         prods, cons = records[t]
@@ -90,12 +92,13 @@ def run_nsga2(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
 
         metrics.record("nsga", err_type, t, best)
         best_fronts.append(best)
+        times.append(time.perf_counter() - start)
 
     # return mean series over time from best fronts
     mean_err = [float(np.mean([e for e,_ in bf])) if bf else 0.0 for bf in best_fronts]
     mean_cost= [float(np.mean([c for _,c in bf])) if bf else 0.0 for bf in best_fronts]
     std_err  = [float(np.std([e for e,_ in bf])) if len(bf)>1 else 0.0 for bf in best_fronts]
-    return mean_err, mean_cost, std_err
+    return mean_err, mean_cost, std_err, times
 
 def _sbx(p1, p2, eta, pc, rng, D, P):
     if rng.random() > pc:

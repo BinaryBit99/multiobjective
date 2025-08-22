@@ -155,6 +155,39 @@ def plot_metric_with_std(times, series, stds, labels, title, ylabel):
     plt.legend()
     plt.show()
 
+
+def plot_quality_vs_time(times, hv_series, time_series, alg_labels):
+    """Plot hypervolume quality against cumulative runtime.
+
+    Parameters
+    ----------
+    times : sequence
+        Time step indices (unused but kept for API symmetry).
+    hv_series : sequence of sequences
+        For each algorithm, a list of hypervolume series, one per seed.
+    time_series : sequence of sequences
+        For each algorithm, a list of runtime series matching ``hv_series``.
+    alg_labels : sequence of str
+        Labels for each algorithm.
+    """
+
+    plt.figure(figsize=(10, 4))
+    for hv_runs, t_runs, lab in zip(hv_series, time_series, alg_labels):
+        hv_arr = np.array(hv_runs)
+        t_arr = np.array(t_runs)
+        median_hv = np.median(hv_arr, axis=0)
+        q1 = np.percentile(hv_arr, 25, axis=0)
+        q3 = np.percentile(hv_arr, 75, axis=0)
+        median_t = np.median(t_arr, axis=0)
+        plt.plot(median_t, median_hv, label=lab)
+        plt.fill_between(median_t, q1, q3, alpha=0.3)
+    plt.xlabel("time (s)")
+    plt.ylabel("HV")
+    plt.title("Quality vs Time")
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
 def plot_tradeoff(errors, costs, labels, title):
     plt.figure(figsize=(8,6))
     mk = ["o","s","^","x","d","*"]

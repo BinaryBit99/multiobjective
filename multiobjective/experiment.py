@@ -65,7 +65,7 @@ def run_experiment(cfg: Config) -> dict:
         series = {}
         for te in ["tp", "res"]:
             if alg_name == "greedy":
-                errs, costs, stds = fn(
+                errs, costs, stds, times = fn(
                     cfg,
                     rng_pool,
                     records,
@@ -76,7 +76,7 @@ def run_experiment(cfg: Config) -> dict:
                     norm_err,
                 )
             else:
-                errs, costs, stds = fn(
+                errs, costs, stds, times = fn(
                     cfg,
                     rng_pool,
                     records,
@@ -88,6 +88,7 @@ def run_experiment(cfg: Config) -> dict:
             series.setdefault("errors", {})[te] = errs
             series.setdefault("costs", {})[te] = costs
             series.setdefault("stds", {})[te] = stds
+            series.setdefault("times", {})[te] = times
 
             # SCS metrics per algorithm/error-type
             prev_assign = None

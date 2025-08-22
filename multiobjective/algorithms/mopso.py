@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np, time
 from ..config import Config
 from ..rng import RNGPool
 from ..types import ErrorType, ProviderRecord, ConsumerRecord
@@ -39,7 +39,8 @@ def _fast_nds(objs):
 def run_mopso(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
               err_type: ErrorType, metrics: MetricsRecorder, norm_fn,
               transition_matrix: dict | None = None):
-    errors, costs, stds = [], [], []
+    errors, costs, stds, times = [], [], [], []
+    start = time.perf_counter()
     for t in range(cfg.num_times):
         rng = rng_pool.for_("pso", t)
         scs_rng = rng_pool.for_("scs", t)
@@ -113,4 +114,5 @@ def run_mopso(cfg: Config, rng_pool: RNGPool, records: dict, cost_per: dict,
         else:
             metrics.record("mopso", err_type, t, [])
             errors.append(0.0); costs.append(0.0); stds.append(0.0)
-    return errors, costs, stds
+        times.append(time.perf_counter() - start)
+    return errors, costs, stds, times
