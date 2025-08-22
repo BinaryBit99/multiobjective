@@ -373,3 +373,85 @@ def plot_assignment_heatmap(assign_matrix, title):
     ax.set_title(title)
     cbar = plt.colorbar(im, ax=ax, ticks=range(int(arr.max()) + 1))
     cbar.set_label("provider")
+
+
+def plot_dbn_checks(results, p_qos, qos_labels, bins: int = 10):
+    """Visualise diagnostics for a learned QoS transition model.
+
+    This helper produces three vertically stacked subplots:
+
+    1. Heatmap of the transition matrix ``T̂`` (row-normalised).
+    2. Calibration curve comparing predicted QoS acceptability probabilities
+       against the empirical acceptance rate from observed QoS labels.
+    3. Bar plot of the entropy of each row of ``T̂``.
+
+    Parameters
+    ----------
+    results : mapping
+        Experiment results containing ``results['meta']['transition_matrix']``.
+    p_qos : sequence of float
+        Predicted acceptability probabilities ``P_qos``.
+    qos_labels : sequence of str
+        Observed QoS labels (``"Low"``, ``"Medium"`` or ``"High"``).
+    bins : int, optional
+        Number of bins to use for the calibration curve.
+    """
+
+    T = results["meta"]["transition_matrix"]
+    states = sorted(T)
+    mat = np.array([[T[s].get(t, 0.0) for t in states] for s in states], dtype=float)
+    row_sums = mat.sum(axis=1, keepdims=True)
+    row_sums[row_sums == 0] = 1.0
+    mat_norm = mat / row_sums
+
+    fig, axes = plt.subplots(3, 1, figsize=(8, 12))
+
+    # Heatmap of transition matrix
+    ax = axes[0]
+    im = ax.imshow(mat_norm, cmap="viridis", vmin=0.0, vmax=1.0, aspect="auto")
+    ax.set_xticks(range(len(states)))
+    ax.set_xticklabels(states)
+    ax.set_yticks(range(len(states)))
+    ax.set_yticklabels(states)
+    ax.set_title(r"Transition matrix $\hat{T}$")
+    fig.colorbar(im, ax=ax, label="P(s'|s)")
+
+    # Calibration curve
+    ax = axes[1]
+    p = np.asarray(p_qos, dtype=float)
+    labels = np.asarray([1.0 if l in {"Medium", "High"} else 0.0 for l in qos_labels])
+    bin_edges = np.linspace(0.0, 1.0, bins + 1)
+    bin_ids = np.digitize(p, bin_edges, right=True) - 1
+    bin_ids = np.clip(bin_ids, 0, bins - 1)
+    pred_means = np.full(bins, np.nan)
+    emp_rates = np.full(bins, np.nan)
+    for b in range(bins):
+        mask = bin_ids == b
+        if np.any(mask):
+            pred_means[b] = p[mask].mean()
+            emp_rates[b] = labels[mask].mean()
+    valid = ~np.isnan(pred_means)
+    ax.plot([0, 1], [0, 1], "k--", label="ideal")
+    ax.plot(pred_means[valid], emp_rates[valid], marker="o", label="observed")
+    ax.set_xlabel("Predicted P(QoS acceptable)")
+    ax.set_ylabel("Empirical accept rate")
+    ax.set_title("QoS calibration")
+    ax.grid(True)
+    ax.legend()
+
+    # Row entropy bar plot
+    ax = axes[2]
+    entropies = []
+    for row in mat_norm:
+        nz = row[row > 0]
+        entropies.append(float(-np.sum(nz * np.log(nz))))
+    ax.bar(range(len(states)), entropies)
+    ax.set_xticks(range(len(states)))
+    ax.set_xticklabels(states)
+    ax.set_ylabel("Entropy")
+    ax.set_xlabel("State")
+    ax.set_title("Row entropies")
+
+    fig.tight_layout()
+    plt.show()
+    return fig, axes
