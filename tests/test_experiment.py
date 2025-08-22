@@ -29,8 +29,11 @@ def test_run_experiment_minimal(monkeypatch):
 
     result = experiment.run_experiment(cfg)
 
-    assert {"series", "indicators", "scs", "meta"} <= set(result.keys())
+    assert {"series", "indicators", "meta"} <= set(result.keys())
     assert "greedy" in result["series"]
+    scs_section = result["series"]["greedy"].get("scs")
+    assert scs_section is not None and set(scs_section.keys()) == {"tp", "res"}
+    assert len(scs_section["tp"]["actual"]) == cfg.num_times
 
 
 def test_run_experiment_no_feasible_pairs():

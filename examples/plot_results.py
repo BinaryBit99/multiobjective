@@ -27,6 +27,7 @@ from multiobjective.plotting import (
     plot_metric_with_std,
     plot_tradeoff,
     plot_indicator_metric,
+    plot_scs_over_time,
 )
 from multiobjective.simulation import euclidean_distance
 from multiobjective.metrics.scs import blended_error
@@ -142,29 +143,26 @@ def main() -> None:
         "Hypervolume",
     )
 
-    # Plot actual vs expected SCS for topology and resilience errors
-    scs_tp = results["scs"]["tp"]
-    scs_E_tp = results["scs"]["E_tp"]
-    scs_res = results["scs"]["res"]
-    scs_E_res = results["scs"]["E_res"]
+    # Plot SCS trajectories for topology and resilience errors
+    tp_scs_series = []
+    tp_labels = []
+    for alg in algs:
+        tp_scs_series.extend([
+            series[alg]["scs"]["tp"]["actual"],
+            series[alg]["scs"]["tp"]["expected"],
+        ])
+        tp_labels.extend([f"{alg} actual", f"{alg} expected"])
+    plot_scs_over_time(times, tp_scs_series, tp_labels, "Topology continuity over time")
 
-    plot_metric_over_time(
-        times,
-        [scs_tp, scs_E_tp],
-        ["Actual SCS", "Expected SCS"],
-        "Topology continuity over time",
-        "Continuity score",
-        caption="Overlay of actual vs expected service continuity for topology errors",
-    )
-
-    plot_metric_over_time(
-        times,
-        [scs_res, scs_E_res],
-        ["Actual SCS", "Expected SCS"],
-        "Resilience continuity over time",
-        "Continuity score",
-        caption="Overlay of actual vs expected service continuity for resilience errors",
-    )
+    res_scs_series = []
+    res_labels = []
+    for alg in algs:
+        res_scs_series.extend([
+            series[alg]["scs"]["res"]["actual"],
+            series[alg]["scs"]["res"]["expected"],
+        ])
+        res_labels.extend([f"{alg} actual", f"{alg} expected"])
+    plot_scs_over_time(times, res_scs_series, res_labels, "Resilience continuity over time")
 
     # Show error–cost tradeoffs for the final time step
     final_errors = [errs[-1] for errs in error_series]
