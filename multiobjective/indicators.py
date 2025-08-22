@@ -5,6 +5,16 @@ from .pareto import pareto_prune
 def _clip01_pair(p): return (min(max(p[0],0.0),1.0), min(max(p[1],0.0),1.0))
 
 def hypervolume_2d(front, ref=(1.0,1.0)) -> float:
+    """Compute a basic 2D hypervolume indicator.
+
+    The input front is first clipped to the unit square and Pareto pruned.
+    Points are assumed to be *minimised* and ``ref`` denotes the upper-right
+    bound of the region of interest.  The implementation sweeps the Pareto
+    front from ``ref`` towards the origin, accumulating rectangular slices of
+    dominated area.  Any remaining slice between the last processed ``x`` value
+    and ``0.0`` is added after the loop to account for fronts that do not reach
+    the ``x``-axis.
+    """
     if not front: return 0.0
     pts = pareto_prune([_clip01_pair(p) for p in front])
     if not pts: return 0.0
@@ -14,6 +24,7 @@ def hypervolume_2d(front, ref=(1.0,1.0)) -> float:
         hv += max(prev_x-x, 0.0)*max(ref[1]-floor_y, 0.0)
         prev_x = x
         floor_y = min(floor_y, y)
+    hv += max(prev_x-0.0, 0.0)*max(ref[1]-floor_y, 0.0)
     return hv
 
 def igd(front, ref_set):
