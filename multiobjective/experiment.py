@@ -1,4 +1,5 @@
 import numpy as np
+import time
 from .config import Config, coverage_radius
 from .rng import RNGPool
 from .data import RecordBuilder
@@ -10,6 +11,7 @@ from .types import ProviderRecord, ConsumerRecord
 from .errors import CoverageError
 
 def run_experiment(cfg: Config) -> dict:
+    start = time.perf_counter()
     rng_pool = RNGPool(cfg.master_seed, cfg.num_times)
     records, cost_per_dict, T, _, _ = RecordBuilder(cfg, rng_pool)
     num_providers, num_consumers = cfg.num_providers, cfg.num_consumers
@@ -127,6 +129,8 @@ def run_experiment(cfg: Config) -> dict:
         for err_type, time_dict in err_dict.items():
             fronts[alg][err_type] = {str(t): front for t, front in time_dict.items()}
 
+    runtime_s = time.perf_counter() - start
+
     return {
         "series": outputs,
         "indicators": indicators,
@@ -135,6 +139,7 @@ def run_experiment(cfg: Config) -> dict:
             "num_providers": num_providers,
             "num_consumers": num_consumers,
             "transition_matrix": T,
+            "runtime_s": runtime_s,
         },
     }
 

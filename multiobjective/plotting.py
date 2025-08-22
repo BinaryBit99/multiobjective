@@ -2,6 +2,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def create_2x2_figure(figsize=(10, 8)):
+    """Create a figure with a 2×2 grid of subplots.
+
+    Parameters
+    ----------
+    figsize : tuple, optional
+        Size passed to :func:`matplotlib.pyplot.subplots`.
+
+    Returns
+    -------
+    fig : :class:`matplotlib.figure.Figure`
+        The created figure.
+    axes : ndarray
+        Array of axes objects arranged in a 2×2 grid.
+    """
+
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
+    return fig, axes
+
 def indicator_series(indicators: dict, name: str, err_type: str = "tp"):
     """Extract per-algorithm indicator values over time.
 
@@ -268,6 +287,32 @@ def plot_scs_vs_cost_at_error(costs_w, scs_w, labels, title):
         plt.scatter([], [], color="k", marker=markers[w], label=f"w={w}")
 
     plt.xlabel("Cost")
+    plt.ylabel("SCS")
+    plt.title(title)
+    plt.grid(True)
+    plt.legend()
+
+
+def plot_scs_vs_weight_at_error(scs_w, weights, labels, title):
+    """Plot SCS against SCS weight for a fixed error level.
+
+    Parameters
+    ----------
+    scs_w : mapping
+        Dictionary mapping SCS weights to SCS values for each algorithm.
+    weights : sequence
+        Ordered sequence of SCS weights corresponding to ``scs_w`` keys.
+    labels : sequence of str
+        Algorithm labels corresponding to values stored in ``scs_w``.
+    title : str
+        Title for the plot.
+    """
+
+    for i, lab in enumerate(labels):
+        ys = [scs_w[w][i] for w in weights]
+        plt.plot(weights, ys, marker="o", label=lab)
+
+    plt.xlabel("w")
     plt.ylabel("SCS")
     plt.title(title)
     plt.grid(True)
