@@ -213,11 +213,39 @@ def plot_quality_vs_time(times, hv_series, time_series, alg_labels):
     plt.show()
 
 def plot_tradeoff(errors, costs, labels, title):
-    plt.figure(figsize=(8,6))
-    mk = ["o","s","^","x","d","*"]
-    for i, (e,c,l) in enumerate(zip(errors, costs, labels)):
-        plt.scatter(e, c, marker=mk[i%len(mk)], label=l)
-    plt.xlabel("Error"); plt.ylabel("Cost"); plt.title(title); plt.grid(True); plt.legend(); plt.show()
+    """Scatter error–cost pairs for algorithms over time.
+
+    Parameters
+    ----------
+    errors : sequence of sequences
+        ``errors[i][t]`` gives the error value for algorithm ``i`` at time ``t``.
+    costs : sequence of sequences
+        ``costs[i][t]`` gives the cost value for algorithm ``i`` at time ``t``.
+    labels : sequence of str
+        Labels corresponding to each algorithm.
+    title : str
+        Title for the plot.
+    """
+
+    plt.figure(figsize=(8, 6))
+    markers = ["o", "s", "^", "x", "d", "*"]
+    colours = [f"C{i}" for i in range(len(labels))]
+
+    for i, (err_series, cost_series, lab) in enumerate(zip(errors, costs, labels)):
+        marker = markers[i % len(markers)]
+        colour = colours[i % len(colours)]
+        last_idx = len(err_series) - 1
+        for t, (e, c) in enumerate(zip(err_series, cost_series)):
+            alpha = 1.0 if t == last_idx else 0.3
+            lbl = lab if t == last_idx else None
+            plt.scatter(e, c, marker=marker, color=colour, alpha=alpha, label=lbl)
+
+    plt.xlabel("Error")
+    plt.ylabel("Cost")
+    plt.title(title)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
 
 
 def indicator_metric_series(indicators: dict, metric: str, err_type: str):
