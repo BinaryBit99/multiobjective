@@ -174,14 +174,15 @@ def main() -> None:
         res_labels.extend([f"{alg} actual", f"{alg} expected"])
     plot_scs_over_time(times, res_scs_series, res_labels, "Resilience continuity over time")
 
-    # Show error–cost tradeoffs for the final time step
-    final_errors = [errs[-1] for errs in error_series]
-    final_costs = [cs[-1] for cs in cost_series]
-    plot_tradeoff(final_errors, final_costs, algs, "Error–Cost tradeoff at final step")
+    # Show error–cost tradeoffs across all time steps
+    plot_tradeoff(error_series, cost_series, algs, "Error–Cost tradeoff over time")
 
-    res_final_errors = [errs[-1] for errs in res_error_series]
-    res_final_costs = [cs[-1] for cs in res_cost_series]
-    plot_tradeoff(res_final_errors, res_final_costs, algs, "Resource error–cost tradeoff at final step")
+    plot_tradeoff(
+        res_error_series,
+        res_cost_series,
+        algs,
+        "Resource error–cost tradeoff over time",
+    )
 
     # Compare cost and SCS at selected error quantiles for different weights
     quantiles = [0.25, 0.50, 0.75]

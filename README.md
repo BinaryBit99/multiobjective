@@ -24,7 +24,8 @@ python examples/plot_results.py
 ```
 
 The script runs `run_experiment` with a tiny configuration and displays error
-and cost trends for two algorithms alongside their final error–cost tradeoff.
+and cost trends for two algorithms alongside their error–cost tradeoff across
+time.
 
 ### Plotting CLI results
 
@@ -66,11 +67,11 @@ plot_indicator_metric(
     "Hypervolume",
 )
 
-# Plot final trade-off
+# Plot trade-off over time
 plot_tradeoff(
-    [series[a]["errors"]["tp"][-1] for a in algs],
-    [series[a]["costs"]["tp"][-1] for a in algs],
-    algs, "Final error–cost tradeoff")
+    [series[a]["errors"]["tp"] for a in algs],
+    [series[a]["costs"]["tp"] for a in algs],
+    algs, "Error–cost tradeoff over time")
 PY
 ```
 
