@@ -41,11 +41,14 @@ def run_experiment(cfg: Config) -> dict:
     def norm_err(kind, error, time):
         mx_tp, mx_res, mn_tp, mn_res, min_cost, max_cost = per_time_bounds[f"{time}"]
         if kind == "tp":
-            return (error - mn_tp) / ((mx_tp - mn_tp) or 1e-12)
+            rng = mx_tp - mn_tp
+            return 0.5 if rng == 0 else (error - mn_tp) / rng
         if kind == "res":
-            return (error - mn_res) / ((mx_res - mn_res) or 1e-12)
+            rng = mx_res - mn_res
+            return 0.5 if rng == 0 else (error - mn_res) / rng
         if kind == "__cost__":
-            return (error - min_cost) / ((max_cost - min_cost) or 1e-12)
+            rng = max_cost - min_cost
+            return 0.5 if rng == 0 else (error - min_cost) / rng
         raise ValueError(kind)
 
     # trackers & metrics
