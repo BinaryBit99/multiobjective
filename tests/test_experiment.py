@@ -4,6 +4,7 @@ from multiobjective.algorithms.greedy import greedy_run
 import multiobjective.algorithms as algorithms
 import pytest
 from multiobjective.errors import CoverageError
+from multiobjective.qos import reg_err
 
 
 def test_run_experiment_minimal(monkeypatch):
@@ -53,3 +54,36 @@ def test_run_experiment_no_feasible_pairs():
 
     with pytest.raises(CoverageError):
         experiment.run_experiment(cfg)
+
+
+def test_norm_err_identical_values(monkeypatch):
+    cfg = Config(
+        num_times=1,
+        num_services=2,
+        ratio_str="one_one",
+        coverage_fraction=1.0,
+        nsga=NSGAConfig(population_size=2, max_generations=1),
+        pso=PSOConfig(swarm_size=2, max_iterations=1),
+        gwo=GWOConfig(wolf_size=2, max_iters=1),
+    )
+
+    def dummy_alg(cfg, rng_pool, records, cost_per, err_type, metrics, norm_fn):
+        errs, costs, stds, times = [], [], [], []
+        for t in range(cfg.num_times):
+            prods, cons = records[t]
+            e = norm_fn(err_type, reg_err(prods[0], cons[0], err_type), t)
+            c = norm_fn("__cost__", prods[0].cost, t)
+            metrics.record("dummy", err_type, t, [(e, c)])
+            errs.append(e)
+            costs.append(c)
+            stds.append(0.0)
+            times.append(0.0)
+        return errs, costs, stds, times
+
+    monkeypatch.setattr(algorithms, "ALG_REGISTRY", {"dummy": dummy_alg})
+
+    result = experiment.run_experiment(cfg)
+    series = result["series"]["dummy"]
+    for te in ["tp", "res"]:
+        assert series["errors"][te] == [0.5]
+        assert series["costs"][te] == [0.5]
