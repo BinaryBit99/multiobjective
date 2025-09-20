@@ -45,6 +45,44 @@ def test_run_experiment_minimal(monkeypatch):
     assert all(t2 >= t1 for t1, t2 in zip(times_section["tp"], times_section["tp"][1:]))
 
 
+def test_run_experiment_uses_algorithm_assignments(monkeypatch):
+    cfg = Config(
+        num_times=2,
+        num_services=4,
+        coverage_fraction=1.0,
+        nsga=NSGAConfig(population_size=2, max_generations=1),
+        pso=PSOConfig(swarm_size=2, max_iterations=1),
+        gwo=GWOConfig(wolf_size=2, max_iters=1),
+    )
+
+    def dummy_alg(cfg, rng_pool, records, cost_per, err_type, metrics, streaks, norm_fn):
+        num_times = cfg.num_times
+        num_consumers = cfg.num_consumers
+        errs = [0.0] * num_times
+        costs = [0.0] * num_times
+        stds = [0.0] * num_times
+        times = [0.0] * num_times
+        assignments = [[0 for _ in range(num_consumers)] for _ in range(num_times)]
+        scs_actual = [0.1 for _ in range(num_times)]
+        scs_expected = [0.2 for _ in range(num_times)]
+        for t in range(num_times):
+            metrics.record("greedy", err_type, t, [(0.0, 0.0)])
+        return errs, costs, stds, times, {
+            "assignments": assignments,
+            "scs_actual": scs_actual,
+            "scs_expected": scs_expected,
+        }
+
+    monkeypatch.setattr(algorithms, "ALG_REGISTRY", {"greedy": dummy_alg})
+
+    result = experiment.run_experiment(cfg)
+    series = result["series"]["greedy"]
+    assert series["scs"]["tp"]["actual"] == [0.1, 0.1]
+    assert series["scs"]["tp"]["expected"] == [0.2, 0.2]
+    expected_assignments = [[0] * cfg.num_consumers for _ in range(cfg.num_times)]
+    assert series["assignments"]["tp"] == expected_assignments
+
+
 def test_run_experiment_no_feasible_pairs():
     cfg = Config(
         num_times=1,
