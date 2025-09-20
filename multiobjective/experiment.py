@@ -67,26 +67,36 @@ def run_experiment(cfg: Config) -> dict:
     for alg_name, fn in ALG_REGISTRY.items():
         series = {}
         for te in ["tp", "res"]:
-            if alg_name == "greedy":
-                errs, costs, stds, times = fn(
-                    cfg,
-                    rng_pool,
-                    records,
-                    cost_per_dict,
-                    te,
-                    metrics,
-                    streaks,
-                    norm_err,
-                )
+            result = fn(
+                cfg,
+                rng_pool,
+                records,
+                cost_per_dict,
+                te,
+                metrics,
+                streaks,
+                norm_err,
+            ) if alg_name == "greedy" else fn(
+                cfg,
+                rng_pool,
+                records,
+                cost_per_dict,
+                te,
+                metrics,
+                norm_err,
+            )
+
+            extra: dict[str, object] = {}
+            if isinstance(result, tuple):
+                if len(result) == 5 and isinstance(result[4], dict):
+                    errs, costs, stds, times, extra = result
+                else:
+                    errs, costs, stds, times = result[:4]
+                    if len(result) > 4 and isinstance(result[4], dict):
+                        extra = result[4]
             else:
-                errs, costs, stds, times = fn(
-                    cfg,
-                    rng_pool,
-                    records,
-                    cost_per_dict,
-                    te,
-                    metrics,
-                    norm_err,
+                raise TypeError(
+                    f"Algorithm '{alg_name}' returned unexpected result type {type(result)!r}"
                 )
             series.setdefault("errors", {})[te] = errs
             series.setdefault("costs", {})[te] = costs
@@ -94,27 +104,65 @@ def run_experiment(cfg: Config) -> dict:
             series.setdefault("times", {})[te] = times
 
             # SCS metrics per algorithm/error-type
-            prev_assign = None
-            actual, expected = [], []
-            assigns: list[list[int]] = []
-            for t in range(cfg.num_times):
-                prods, cons = records[t]
-                assign = []
-                for ci, c in enumerate(cons):
-                    scores = []
-                    for pi, p in enumerate(prods):
-                        e = norm_err(te, reg_err(p, c, te), t)
-                        scores.append((e + norm_err("__cost__", p.cost, t), pi))
-                    assign.append(min(scores)[1])
-                scs_rng = rng_pool.for_("scs", t)
-                score, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg)
-                mean_next, _ = expected_scs_next(
-                    assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng, T
+            supplied_assign = extra.get("assignments") if extra else None
+            supplied_actual = extra.get("scs_actual") if extra else None
+            supplied_expected = extra.get("scs_expected") if extra else None
+
+            if supplied_assign is not None:
+                assigns = supplied_assign
+                actual = (
+                    supplied_actual
+                    if supplied_actual is not None
+                    else []
                 )
-                actual.append(score)
-                expected.append(mean_next)
-                assigns.append(assign)
-                prev_assign = assign[:]
+                expected = (
+                    supplied_expected
+                    if supplied_expected is not None
+                    else []
+                )
+
+                if not actual or not expected:
+                    prev_assign = None
+                    actual, expected = [], []
+                    for t, assign in enumerate(assigns):
+                        prods, cons = records[t]
+                        scs_rng = rng_pool.for_("scs", t)
+                        score, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg)
+                        mean_next, _ = expected_scs_next(
+                            assign,
+                            (prods, cons),
+                            prev_assign,
+                            cfg,
+                            scs_cfg,
+                            scs_rng,
+                            T,
+                        )
+                        actual.append(score)
+                        expected.append(mean_next)
+                        prev_assign = assign[:]
+            else:
+                prev_assign = None
+                actual, expected = [], []
+                assigns = []
+                for t in range(cfg.num_times):
+                    prods, cons = records[t]
+                    assign = []
+                    for ci, c in enumerate(cons):
+                        scores = []
+                        for pi, p in enumerate(prods):
+                            e = norm_err(te, reg_err(p, c, te), t)
+                            scores.append((e + norm_err("__cost__", p.cost, t), pi))
+                        assign.append(min(scores)[1])
+                    scs_rng = rng_pool.for_("scs", t)
+                    score, _ = scs(assign, (prods, cons), prev_assign, cfg, scs_cfg)
+                    mean_next, _ = expected_scs_next(
+                        assign, (prods, cons), prev_assign, cfg, scs_cfg, scs_rng, T
+                    )
+                    actual.append(score)
+                    expected.append(mean_next)
+                    assigns.append(assign)
+                    prev_assign = assign[:]
+
             series.setdefault("scs", {})[te] = {
                 "actual": actual,
                 "expected": expected,
