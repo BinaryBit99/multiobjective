@@ -1,3 +1,5 @@
+from itertools import cycle
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import kendalltau
@@ -75,10 +77,23 @@ def indicator_series(indicators: dict, name: str, err_type: str = "tp"):
     return times, series, labels
 
 
-def plot_metric_over_time(times, series, labels, title, ylabel, caption: str | None = None):
+def plot_metric_over_time(
+    times,
+    series,
+    labels,
+    title,
+    ylabel,
+    caption: str | None = None,
+    style_map: dict[str, dict[str, object]] | None = None,
+):
+    """Plot one or more labelled metric trajectories against time."""
+
     plt.figure(figsize=(10,4))
     for ys, lab in zip(series, labels):
-        plt.plot(times, ys, marker="o", label=lab)
+        style = {"marker": "o"}
+        if style_map:
+            style.update(style_map.get(lab, {}))
+        plt.plot(times, ys, label=lab, **style)
     plt.title(title)
     plt.xlabel("t")
     plt.ylabel(ylabel)
@@ -109,7 +124,33 @@ def plot_scs_over_time(times, series, labels, title, caption: str | None = None)
         Caption placed below the plot.
     """
 
-    plot_metric_over_time(times, series, labels, title, ylabel="SCS", caption=caption)
+    fallback_styles = cycle(
+        [
+            {"marker": "^", "linestyle": "-.", "markersize": 6},
+            {"marker": "v", "linestyle": ":", "markersize": 6},
+            {"marker": "d", "linestyle": "-", "markersize": 6},
+        ]
+    )
+
+    style_map = {}
+    for label in labels:
+        lower = label.lower()
+        if "actual" in lower:
+            style_map[label] = {"marker": "o", "linestyle": "-", "markersize": 6}
+        elif "expected" in lower:
+            style_map[label] = {"marker": "s", "linestyle": "--", "markersize": 6}
+        else:
+            style_map[label] = next(fallback_styles)
+
+    plot_metric_over_time(
+        times,
+        series,
+        labels,
+        title,
+        ylabel="SCS",
+        caption=caption,
+        style_map=style_map,
+    )
 
 
 def plot_churn_over_time(times, churn_series, scs_series, labels, title):
